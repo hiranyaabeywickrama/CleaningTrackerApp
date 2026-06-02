@@ -26,6 +26,19 @@ const WelcomeScreen = ({ navigation }) => {
     }
   };
 
+  const handleResetConfig = async () => {
+    try {
+      await AsyncStorage.removeItem('custom_backend_url');
+      const defaultUrl = 'https://cleaningtrackerapp-production.up.railway.app';
+      setDynamicBaseUrl(defaultUrl);
+      setInputUrl(defaultUrl);
+      setShowConfig(false);
+      Alert.alert('Configuration Reset 🚀', 'Backend connection URL has been reset to the default live Railway server.');
+    } catch (e) {
+      Alert.alert('Reset Failed', e.message);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       {/* Developer Server Configuration Modal */}
@@ -51,6 +64,9 @@ const WelcomeScreen = ({ navigation }) => {
             />
 
             <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={handleResetConfig}>
+                <Text style={styles.modalBtnTextCancel}>Reset Default</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={() => setShowConfig(false)}>
                 <Text style={styles.modalBtnTextCancel}>Cancel</Text>
               </TouchableOpacity>
