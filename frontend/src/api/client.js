@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Platform, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getBackendUrl = () => {
   if (Platform.OS === 'web') {
@@ -32,7 +33,7 @@ const getBackendUrl = () => {
       // Route to local IP address so that physical devices can still work!
       if (host.includes('ngrok') || host.includes('expo.dev')) {
         console.log(`[SparkleFlow API] Tunnel connection detected (${host}). Routing to local IP backend.`);
-        return 'http://192.168.1.102:5000';
+        return 'http://10.130.45.181:5000';
       }
 
       console.log(`[SparkleFlow API] Dev server host resolved: ${host} -> pointing to local IP: http://${host}:5000`);
@@ -46,10 +47,33 @@ const getBackendUrl = () => {
   }
 
   // Point to the local machine IP address for physical APK testing!
-  return 'http://192.168.1.102:5000';
+  return 'http://10.130.45.181:5000';
 };
 
 export const BASE_URL = getBackendUrl();
+export let CURRENT_BASE_URL = BASE_URL;
+
+export const setDynamicBaseUrl = (url) => {
+  if (!url) return;
+  CURRENT_BASE_URL = url;
+  apiClient.defaults.baseURL = `${url}/api`;
+};
+
+// Load saved backend URL override on startup
+export const initializeBaseUrl = async () => {
+  try {
+    const savedUrl = await AsyncStorage.getItem('custom_backend_url');
+    if (savedUrl) {
+      setDynamicBaseUrl(savedUrl);
+      console.log(`[API Client] Initialized with custom saved URL: ${savedUrl}`);
+      return savedUrl;
+    }
+  } catch (e) {
+    console.error('Failed to load custom backend URL:', e);
+  }
+  console.log(`[API Client] Initialized with default URL: ${CURRENT_BASE_URL}`);
+  return CURRENT_BASE_URL;
+};
 
 const apiClient = axios.create({
   baseURL: `${BASE_URL}/api`,

@@ -17,7 +17,7 @@ import ActiveJobScreen from './src/screens/worker/ActiveJobScreen';
 import AdminDashboard from './src/screens/admin/AdminDashboard';
 import ContractorDashboard from './src/screens/contractor/ContractorDashboard';
 
-import { setAuthToken, setCurrentUserStore, loadPersistentSession, authAPI } from './src/api/client';
+import { setAuthToken, setCurrentUserStore, loadPersistentSession, authAPI, initializeBaseUrl } from './src/api/client';
 
 const Stack = createStackNavigator();
 
@@ -29,6 +29,7 @@ export default function App() {
   // Auto-login session restore effect on boot — validates token against server
   useEffect(() => {
     const validateAndRestoreSession = async () => {
+      await initializeBaseUrl(); // Load custom saved backend URL override first!
       const session = loadPersistentSession();
       if (session && session.token) {
         try {
