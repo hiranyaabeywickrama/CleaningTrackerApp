@@ -13,7 +13,7 @@ import {
   Image
 } from 'react-native';
 import { Colors } from '../theme/colors';
-import { authAPI } from '../api/client';
+import { authAPI, CURRENT_BASE_URL } from '../api/client';
 import AppFooter from '../components/AppFooter';
 import CustomButton from '../components/CustomButton';
 import CustomInput from '../components/CustomInput';
@@ -145,7 +145,7 @@ const LoginScreen = ({ onLoginSuccess, navigation, route }) => {
       }
     } catch (err) {
       setLoading(false);
-      Alert.alert('Error', err.response?.data?.message || 'Network error');
+      Alert.alert('Error', err.response?.data?.message || `Network error (connecting to ${CURRENT_BASE_URL})`);
     }
   };
 
@@ -200,7 +200,7 @@ const LoginScreen = ({ onLoginSuccess, navigation, route }) => {
     } catch (err) {
       setLoading(false);
       console.warn('OTP request error:', err.response?.data || err.message);
-      const msg = err.response?.data?.message || 'Could not reach the server. Is the backend running?';
+      const msg = err.response?.data?.message || `Could not reach the server at ${CURRENT_BASE_URL}. Is the backend running?`;
       
       if (err.response?.status === 404) {
         setErrors({ otpEmail: msg });

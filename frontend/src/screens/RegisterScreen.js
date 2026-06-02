@@ -13,7 +13,7 @@ import {
   Image
 } from 'react-native';
 import { Colors } from '../theme/colors';
-import { authAPI } from '../api/client';
+import { authAPI, CURRENT_BASE_URL } from '../api/client';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import AppFooter from '../components/AppFooter';
@@ -148,7 +148,7 @@ const RegisterScreen = ({ navigation }) => {
       if (err.response?.status === 503) {
         title = msg && /resend test mode/i.test(msg) ? 'Cannot Send to This Email' : 'Email Not Configured';
       }
-      Alert.alert(title, msg || 'Could not reach the server. Is the backend running?');
+      Alert.alert(title, msg || `Could not reach the server at ${CURRENT_BASE_URL}. Is the backend running?`);
     }
   };
 
