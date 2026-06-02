@@ -1,0 +1,354 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { Colors } from '../../theme/colors';
+import CustomInput from '../../components/CustomInput';
+import CustomButton from '../../components/CustomButton';
+import { authAPI, jobsAPI } from '../../api/client';
+
+const AssignJobScreen = ({ onJobCreated }) => {
+  const [customerName, setCustomerName] = useState('');
+  const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState(40.7527);
+  const [longitude, setLongitude] = useState(-73.9772);
+  const [radius, setRadius] = useState('200');
+  const [expectedHours, setExpectedHours] = useState('2.5');
+  const [assignedWorker, setAssignedWorker] = useState('');
+  const [notes, setNotes] = useState('');
+  
+  const [workers, setWorkers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
+
+  useEffect(() => {
+    const fetchWorkers = async () => {
+      setLoadingWorkers(true);
+      try {
+        const res = await authAPI.getWorkers();
+        if (res.success) {
+          setWorkers(res.workers);
+          if (res.workers.length > 0) {
+            setAssignedWorker(res.workers[0]._id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching workers:', error.message);
+      } finally {
+        setLoadingWorkers(false);
+      }
+    };
+    fetchWorkers();
+  }, []);
+
+  const handleCreateJob = async () => {
+    if (!customerName || !address || latitude === undefined || longitude === undefined || !assignedWorker) {
+      Alert.alert('Missing Fields', 'Please complete all required fields and select a worker.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const jobData = {
+        customerName,
+        address,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        geofenceRadius: parseInt(radius) || 200,
+        expectedHours: parseFloat(expectedHours) || 2,
+        assignedWorker,
+        startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // scheduled 2 hours from now
+        notes
+      };
+
+      const res = await jobsAPI.create(jobData);
+      setLoading(false);
+
+      if (res.success) {
+        Alert.alert('Success', 'Cleaning Job has been created and assigned successfully!');
+        // Reset form
+        setCustomerName('');
+        setAddress('');
+        setNotes('');
+        
+        if (onJobCreated) {
+          onJobCreated();
+        }
+      }
+    } catch (error) {
+      setLoading(false);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to create job');
+    }
+  };
+
+  // Helper presets for coordinates
+  const handleApplyPreset = (preset) => {
+    switch (preset) {
+      case 'broadway':
+        setCustomerName('Broadway Theatre Office');
+        setAddress('1681 Broadway, New York, NY 10019');
+        setLatitude(40.7628);
+        setLongitude(-73.9836);
+        setRadius('150');
+        setExpectedHours('4.0');
+        break;
+      case 'chelsea':
+        setCustomerName('Chelsea Gallery Complex');
+        setAddress('529 W 20th St, New York, NY 10011');
+        setLatitude(40.7456);
+        setLongitude(-74.0071);
+        setRadius('100');
+        setExpectedHours('3.0');
+        break;
+      case 'soho':
+      default:
+        setCustomerName('Soho Loft Apartment');
+        setAddress('120 Prince St, New York, NY 10012');
+        setLatitude(40.7247);
+        setLongitude(-73.9996);
+        setRadius('250');
+        setExpectedHours('2.0');
+        break;
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Create & Assign Job</Text>
+
+        {/* Dynamic coordinate presets */}
+        <Text style={styles.presetTitle}>Location Coordinates Presets:</Text>
+        <View style={styles.presetRow}>
+          <TouchableOpacity style={styles.presetBtn} onPress={() => handleApplyPreset('broadway')}>
+            <Text style={styles.presetText}>🎭 Broadway</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.presetBtn} onPress={() => handleApplyPreset('chelsea')}>
+            <Text style={styles.presetText}>🖼️ Chelsea</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.presetBtn} onPress={() => handleApplyPreset('soho')}>
+            <Text style={styles.presetText}>🛋️ Soho Loft</Text>
+          </TouchableOpacity>
+        </View>
+
+        <CustomInput
+          label="Customer / Business Name"
+          value={customerName}
+          onChangeText={setCustomerName}
+          placeholder="e.g. Acme Corp HQ"
+          required
+        />
+
+        <CustomInput
+          label="Street Address"
+          value={address}
+          onChangeText={setAddress}
+          placeholder="e.g. 500 Fifth Avenue, NY"
+          required
+        />
+
+        <View style={styles.doubleRow}>
+          <View style={styles.halfWidth}>
+            <CustomInput
+              label="Latitude"
+              value={latitude.toString()}
+              onChangeText={setLatitude}
+              placeholder="e.g. 40.7128"
+              keyboardType="numeric"
+              required
+            />
+          </View>
+          <View style={styles.halfWidth}>
+            <CustomInput
+              label="Longitude"
+              value={longitude.toString()}
+              onChangeText={setLongitude}
+              placeholder="e.g. -74.0060"
+              keyboardType="numeric"
+              required
+            />
+          </View>
+        </View>
+
+        <View style={styles.doubleRow}>
+          <View style={styles.halfWidth}>
+            <CustomInput
+              label="Expected Duration (Hours)"
+              value={expectedHours}
+              onChangeText={setExpectedHours}
+              placeholder="e.g. 3.5"
+              keyboardType="numeric"
+              required
+            />
+          </View>
+          <View style={styles.halfWidth}>
+            <CustomInput
+              label="Geofence Radius (meters)"
+              value={radius}
+              onChangeText={setRadius}
+              placeholder="e.g. 200"
+              keyboardType="numeric"
+              required
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.dropdownLabel}>Assign Cleaning Crew *</Text>
+          <View style={styles.pickerContainer}>
+            {loadingWorkers ? (
+              <Text style={styles.pickerPlaceholder}>Loading crew list...</Text>
+            ) : workers.length === 0 ? (
+              <Text style={styles.pickerPlaceholder}>No crew members available</Text>
+            ) : (
+              <ScrollView style={styles.pickerScroll} nestedScrollEnabled>
+                {workers.map((worker) => (
+                  <TouchableOpacity
+                    key={worker._id}
+                    style={[
+                      styles.pickerItem,
+                      assignedWorker === worker._id && styles.pickerItemActive
+                    ]}
+                    onPress={() => setAssignedWorker(worker._id)}
+                  >
+                    <Text style={[
+                      styles.pickerItemText,
+                      assignedWorker === worker._id && styles.pickerItemTextActive
+                    ]}>
+                      👤 {worker.name} ({worker.status})
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+
+        <CustomInput
+          label="Scope of Work / Instructions"
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Vacuum carpets, disinfect desks, empty bins, etc."
+          multiline
+          numberOfLines={3}
+          style={{ height: 75, textAlignVertical: 'top' }}
+        />
+
+        <CustomButton
+          title="Create and Send Assignment ➔"
+          type="primary" // Green SaaS
+          onPress={handleCreateJob}
+          loading={loading}
+          style={{ marginTop: 8 }}
+        />
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    padding: 16
+  },
+  card: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 4
+  },
+  cardTitle: {
+    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 16
+  },
+  presetTitle: {
+    color: Colors.textMuted,
+    fontSize: 10.5,
+    fontWeight: '800',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  presetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16
+  },
+  presetBtn: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.2,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    width: '31%',
+    alignItems: 'center'
+  },
+  presetText: {
+    color: Colors.secondary, // Blue text
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  doubleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2
+  },
+  halfWidth: {
+    width: '48%'
+  },
+  fieldGroup: {
+    width: '100%',
+    marginBottom: 14
+  },
+  dropdownLabel: {
+    fontSize: 13,
+    color: '#334155',
+    marginBottom: 6,
+    fontWeight: '700'
+  },
+  pickerContainer: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.2,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    height: 100, 
+    overflow: 'hidden'
+  },
+  pickerPlaceholder: {
+    color: Colors.textMuted,
+    fontSize: 11.5,
+    padding: 10,
+    textAlign: 'center',
+    marginTop: 20
+  },
+  pickerScroll: {
+    flex: 1
+  },
+  pickerItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E2E8F0'
+  },
+  pickerItemActive: {
+    backgroundColor: Colors.primaryMuted // Light Green SaaSbg
+  },
+  pickerItemText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  pickerItemTextActive: {
+    color: Colors.primary, // Green text
+    fontWeight: '800'
+  }
+});
+
+export default AssignJobScreen;

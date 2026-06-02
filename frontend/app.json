@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Cleaning Tracker",
+    "slug": "cleaning-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "usesCleartextTraffic": true,
+      "backgroundColor": "#0F172A",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.mhabey.cleaningtracker"
+    },
+    "web": {
+      "backgroundColor": "#0F172A"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4d6e3d9b-3c3d-41d0-8cba-9d68763acba4"
+      }
+    }
+  }
+}
