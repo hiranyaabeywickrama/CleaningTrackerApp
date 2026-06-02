@@ -3,6 +3,9 @@ const env = require('../config/env');
 
 let smtpTransporter = null;
 const RESEND_TIMEOUT_MS = 10000;
+const SMTP_CONNECT_TIMEOUT_MS = 10000;
+const SMTP_SOCKET_TIMEOUT_MS = 15000;
+const SMTP_GREETING_TIMEOUT_MS = 10000;
 
 const PLACEHOLDER_PASSWORDS = new Set([
   'paste_the_16_chars_from_google_here',
@@ -144,7 +147,10 @@ const getSmtpTransporter = async () => {
     host,
     port,
     secure,
-    auth: { user, pass }
+    auth: { user, pass },
+    connectionTimeout: SMTP_CONNECT_TIMEOUT_MS,
+    socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
+    greetingTimeout: SMTP_GREETING_TIMEOUT_MS
   });
 
   await smtpTransporter.verify();
