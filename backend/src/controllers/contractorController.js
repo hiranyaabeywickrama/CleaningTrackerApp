@@ -115,16 +115,26 @@ exports.createContract = async (req, res) => {
       });
     }
 
-    // Enforce worker existence & availability
-    const validWorkers = await User.find({
+    // Fetch all requested workers
+    const requestedWorkers = await User.find({
       _id: { $in: workers },
-      role: 'worker',
-      status: 'available'
+      role: 'worker'
     });
-    if (validWorkers.length !== workers.length) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'One or more selected workers are either busy, offline, or invalid.' 
+
+    const unavailableWorkers = requestedWorkers.filter(w => !['available', 'active_shift'].includes(w.status));
+    
+    if (unavailableWorkers.length > 0) {
+      const details = unavailableWorkers.map(w => `${w.name} (${w.status.toUpperCase().replace('_', ' ')})`).join(', ');
+      return res.status(400).json({
+        success: false,
+        message: `The following selected workers are unavailable: ${details}. Please select available/online cleaners.`
+      });
+    }
+
+    if (requestedWorkers.length !== workers.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more selected worker IDs are invalid or do not exist.'
       });
     }
 

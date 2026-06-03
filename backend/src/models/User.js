@@ -42,7 +42,7 @@ const UserSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['offline', 'active_shift', 'cleaning', 'available', 'busy', 'on_job'],
-    default: 'available'
+    default: 'offline'
   },
   createdAt: {
     type: Date,

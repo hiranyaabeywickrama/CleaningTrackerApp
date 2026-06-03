@@ -374,11 +374,11 @@ const ContractorDashboard = ({ user, onLogout }) => {
     if (isSelected) {
       setSelectedWorkers(selectedWorkers.filter(w => w._id !== worker._id));
     } else {
-      // 1. Restrict to available workers only
-      if (worker.status !== 'available') {
+      // 1. Restrict to available/online workers only
+      if (worker.status !== 'available' && worker.status !== 'active_shift') {
         Alert.alert(
           'Cleaner Unavailable',
-          `👤 ${worker.name} is currently ${worker.status.toUpperCase().replace('_', ' ')}. You can only select Available cleaners for contracts.`
+          `👤 ${worker.name} is currently ${worker.status.toUpperCase().replace('_', ' ')}. You can only select Available/Online cleaners for contracts.`
         );
         return;
       }
@@ -615,6 +615,30 @@ const ContractorDashboard = ({ user, onLogout }) => {
                           <View style={styles.workerCol}>
                             <Text style={styles.workerName}>👤 {assign.workerId?.name || 'Cleaner'}</Text>
                             <Text style={styles.workerPhone}>📞 {assign.workerId?.phoneNumber || 'No Phone'}</Text>
+                            {assign.workerId?.status && (
+                              <Text style={[
+                                styles.workerStatusLabel,
+                                {
+                                  color: ['available', 'active_shift'].includes(assign.workerId.status)
+                                    ? '#10B981' // Green
+                                    : ['busy', 'cleaning', 'on_job'].includes(assign.workerId.status)
+                                    ? '#F59E0B' // Amber
+                                    : '#64748B' // Grey (offline)
+                                }
+                              ]}>
+                                Status: {
+                                  assign.workerId.status === 'active_shift'
+                                    ? 'ACTIVE (ONLINE)'
+                                    : assign.workerId.status === 'available'
+                                    ? 'AVAILABLE'
+                                    : assign.workerId.status === 'offline'
+                                    ? 'OFFLINE'
+                                    : assign.workerId.status === 'busy'
+                                    ? 'BUSY'
+                                    : assign.workerId.status.toUpperCase().replace('_', ' ')
+                                }
+                              </Text>
+                            )}
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <View style={[
@@ -957,11 +981,23 @@ const ContractorDashboard = ({ user, onLogout }) => {
                         
                         // Status styling helper
                         const getStatusDot = (st) => {
-                          if (st === 'available') return '#10B981';
-                          if (st === 'busy') return '#F59E0B';
-                          if (st === 'offline') return '#94A3B8';
-                          return '#3B82F6'; // on_job
+                          if (st === 'available' || st === 'active_shift') return '#10B981'; // Green
+                          if (st === 'busy' || st === 'cleaning' || st === 'on_job') return '#F59E0B'; // Amber
+                          if (st === 'offline') return '#94A3B8'; // Grey
+                          return '#94A3B8';
                         };
+
+                        const getStatusLabel = (st) => {
+                          if (st === 'available') return 'AVAILABLE';
+                          if (st === 'active_shift') return 'ACTIVE (ONLINE)';
+                          if (st === 'offline') return 'OFFLINE';
+                          if (st === 'busy') return 'BUSY';
+                          if (st === 'cleaning') return 'CLEANING (BUSY)';
+                          if (st === 'on_job') return 'ON JOB (BUSY)';
+                          return (st || '').toUpperCase().replace('_', ' ');
+                        };
+
+                        const isSelectable = ['available', 'active_shift'].includes(worker.status);
 
                         return (
                           <View
@@ -977,7 +1013,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                               <View style={styles.workerCardStatusRow}>
                                 <View style={[styles.statusDot, { backgroundColor: getStatusDot(worker.status) }]} />
                                 <Text style={styles.workerCardStatusText}>
-                                  {worker.status.toUpperCase().replace('_', ' ')}
+                                  {getStatusLabel(worker.status)}
                                 </Text>
                               </View>
                             </View>
@@ -986,7 +1022,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                               style={[
                                 styles.workerCardSelectBtn,
                                 isSelected && styles.workerCardSelectBtnRemove,
-                                worker.status !== 'available' && !isSelected && styles.workerCardSelectBtnDisabled
+                                !isSelectable && !isSelected && styles.workerCardSelectBtnDisabled
                               ]}
                               onPress={() => toggleSelectWorker(worker)}
                             >
@@ -994,7 +1030,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                                 styles.workerCardSelectBtnText,
                                 isSelected && styles.workerCardSelectBtnTextRemove
                               ]}>
-                                {isSelected ? 'Remove' : worker.status !== 'available' ? 'Locked' : 'Select'}
+                                {isSelected ? 'Remove' : !isSelectable ? 'Locked' : 'Select'}
                               </Text>
                             </TouchableOpacity>
                           </View>
@@ -1562,6 +1598,11 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '600',
     marginTop: 2
+  },
+  workerStatusLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    marginTop: 3
   },
   assignBadge: {
     paddingVertical: 4,
