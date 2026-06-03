@@ -252,16 +252,40 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
     try {
       setSearchingPlace(true);
+      // Query Photon (Komoot) autocomplete service which is designed for search-as-you-type and does not block client IPs
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
-        {
-          headers: {
-            'User-Agent': 'SparkleFlowCleaningTracker/1.0'
-          }
-        }
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`
       );
       const data = await response.json();
-      setSearchSuggestions(data || []);
+      
+      if (data && data.features) {
+        const mapped = data.features.map((feature) => {
+          const props = feature.properties || {};
+          const coords = feature.geometry?.coordinates || [0, 0];
+          
+          // Construct readable display name from OSM feature properties
+          const parts = [];
+          if (props.name) parts.push(props.name);
+          if (props.housenumber) parts.push(props.housenumber);
+          if (props.street) parts.push(props.street);
+          if (props.district) parts.push(props.district);
+          if (props.city) parts.push(props.city);
+          if (props.state) parts.push(props.state);
+          if (props.postcode) parts.push(props.postcode);
+          if (props.country) parts.push(props.country);
+          
+          const displayName = parts.filter(Boolean).join(', ');
+          
+          return {
+            lat: coords[1], // Latitude is index 1
+            lon: coords[0], // Longitude is index 0
+            display_name: displayName || 'Unknown Place'
+          };
+        });
+        setSearchSuggestions(mapped);
+      } else {
+        setSearchSuggestions([]);
+      }
     } catch (e) {
       console.warn('Place search autocomplete error:', e.message);
     } finally {
