@@ -757,14 +757,12 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
                   {/* Google Maps Coordinates Picker */}
                   <Text style={styles.fieldGroupLabel}>Google Maps Location Picker <Text style={{ color: Colors.danger }}>*</Text></Text>
-                  <View style={styles.simulatedMapPicker}>
-                    <EmbeddedGoogleMap
-                      latitude={parseFloat(latitude) || NY_LAT}
-                      longitude={parseFloat(longitude) || NY_LNG}
-                      height={220}
-                      style={{ borderRadius: 16 }}
-                    />
-                  </View>
+                  <EmbeddedGoogleMap
+                    latitude={parseFloat(latitude) || NY_LAT}
+                    longitude={parseFloat(longitude) || NY_LNG}
+                    height={220}
+                    style={{ borderRadius: 16, marginBottom: 14 }}
+                  />
 
                   {address ? (
                     <View style={styles.selectedAddressContainer}>

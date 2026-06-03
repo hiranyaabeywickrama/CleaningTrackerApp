@@ -28,7 +28,7 @@ const EmbeddedGoogleMap = ({ latitude, longitude, height = 250, style }) => {
   }
 
   return (
-    <View style={[{ height, overflow: 'hidden', borderRadius: 16 }, style]}>
+    <View style={[{ height, width: '100%', overflow: 'hidden', borderRadius: 16 }, style]}>
       <WebView
         source={{ uri }}
         style={StyleSheet.absoluteFillObject}
