@@ -164,8 +164,8 @@ exports.createContract = async (req, res) => {
       notes
     });
 
-    // Create Worker Assignments with standard (15 mins) or urgent (5 mins) timers
-    const timerMinutes = !!isUrgent ? 5 : 15;
+    // Create Worker Assignments with standard (2 hours = 120 mins) or urgent (5 mins) timers
+    const timerMinutes = !!isUrgent ? 5 : 120;
     const responseDeadline = new Date(Date.now() + timerMinutes * 60 * 1000); 
     const assignments = [];
 
@@ -183,7 +183,9 @@ exports.createContract = async (req, res) => {
         userId: workerId,
         type: 'contract_request',
         title: isUrgent ? 'Urgent Contract Request' : 'New Contract Request',
-        message: `You have ${timerMinutes} minutes to respond to a cleaning contract at ${address}.`,
+        message: isUrgent 
+          ? `You have 5 minutes to respond to an urgent cleaning contract at ${address}.`
+          : `You have 2 hours to respond to a cleaning contract at ${address}.`,
         data: {
           assignmentId: assignment._id,
           contractId: contract._id,
@@ -202,7 +204,7 @@ exports.createContract = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Contract successfully drafted. Requests dispatched to selected workers with a 15-minute response deadline.',
+      message: `Contract successfully drafted. Requests dispatched to selected workers with a ${isUrgent ? '5-minute' : '2-hour'} response deadline.`,
       contract,
       assignments
     });

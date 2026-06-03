@@ -941,7 +941,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                           <Text style={[styles.priorityCardLabel, !isUrgent && styles.priorityCardLabelActive]}>
                             Standard
                           </Text>
-                          <Text style={styles.priorityCardDesc}>15 min deadline</Text>
+                          <Text style={styles.priorityCardDesc}>2 hr deadline</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
