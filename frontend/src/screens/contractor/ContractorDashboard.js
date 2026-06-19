@@ -196,9 +196,8 @@ const ContractorDashboard = ({ user, onLogout }) => {
     }
 
     if (activeTab === 'newContract' && selectedRosterWorker) {
-      setSelectedRosterWorker(null);
-      setTabHistory((prev) => prev.length > 1 ? prev.slice(0, -1) : prev);
-      setActiveTab('projects');
+      setSelectedPackage(null);
+      setActiveTab('roster');
       return true;
     }
 
@@ -2898,9 +2897,18 @@ const ContractorDashboard = ({ user, onLogout }) => {
               {/* Back to Dashboard Button */}
               <TouchableOpacity
                 style={styles.backToDashboardBtn}
-                onPress={() => navigateToTab('projects')}
+                onPress={() => {
+                  if (selectedRosterWorker) {
+                    setSelectedPackage(null);
+                    navigateToTab('roster');
+                  } else {
+                    navigateToTab('projects');
+                  }
+                }}
               >
-                <Text style={styles.backToDashboardBtnText}>← Back to Dashboard</Text>
+                <Text style={styles.backToDashboardBtnText}>
+                  {selectedRosterWorker ? '← Back to Profile' : '← Back to Dashboard'}
+                </Text>
               </TouchableOpacity>
 
               {/* ── State A: Package Selection screen ── */}
@@ -3148,37 +3156,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                     </View>
                   )}
 
-                  {/* Priority / Urgency (Premium only) */}
-                  {selectedPackage.name === 'Premium' && (
-                    <View style={styles.premiumPriorityContainer}>
-                      <Text style={styles.stepperLabel}>Priority Level Dispatch:</Text>
-                      <View style={styles.prioritySelectorRow}>
-                        <TouchableOpacity
-                          activeOpacity={0.9}
-                          style={[styles.priorityCard, !isUrgent && styles.priorityCardActive]}
-                          onPress={() => setIsUrgent(false)}
-                        >
-                          <Text style={styles.priorityCardIcon}>⏱️</Text>
-                          <Text style={[styles.priorityCardLabel, !isUrgent && styles.priorityCardLabelActive]}>
-                            Standard
-                          </Text>
-                          <Text style={styles.priorityCardDesc}>2 hr deadline</Text>
-                        </TouchableOpacity>
 
-                        <TouchableOpacity
-                          activeOpacity={0.9}
-                          style={[styles.priorityCard, isUrgent && styles.priorityCardActiveRed]}
-                          onPress={() => setIsUrgent(true)}
-                        >
-                          <Text style={styles.priorityCardIcon}>🚨</Text>
-                          <Text style={[styles.priorityCardLabel, isUrgent && styles.priorityCardLabelActiveRed]}>
-                            Urgent
-                          </Text>
-                          <Text style={styles.priorityCardDesc}>10 min deadline</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
 
 
 
