@@ -339,10 +339,13 @@ const AssignJobScreen = ({ onJobCreated }) => {
                 const dateString = `${yyyy}-${mm}-${dd}`;
                 const selected = dateString === jobDate;
                 const isToday = day.toDateString() === new Date().toDateString();
+                const isPast = day.getTime() < new Date().setHours(0, 0, 0, 0);
+
                 return (
                   <TouchableOpacity
                     key={dateString}
                     style={styles.dayCell}
+                    disabled={isPast}
                     onPress={() => {
                       setJobDate(dateString);
                       setShowCalendarModal(false);
@@ -350,10 +353,15 @@ const AssignJobScreen = ({ onJobCreated }) => {
                   >
                     <View style={[
                       styles.dayInnerCircle,
-                      selected && styles.dayInnerCircleSelected,
-                      isToday && !selected && styles.dayInnerCircleToday
+                      !isPast && selected && styles.dayInnerCircleSelected,
+                      !isPast && isToday && !selected && styles.dayInnerCircleToday
                     ]}>
-                      <Text style={[styles.dayText, selected && styles.dayTextSelected, isToday && !selected && styles.dayTextToday]}>
+                      <Text style={[
+                        styles.dayText,
+                        isPast && { color: '#CBD5E1' },
+                        !isPast && selected && styles.dayTextSelected,
+                        !isPast && isToday && !selected && styles.dayTextToday
+                      ]}>
                         {day.getDate()}
                       </Text>
                     </View>

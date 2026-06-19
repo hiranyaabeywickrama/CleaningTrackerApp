@@ -3406,11 +3406,13 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   ? rosterAssignDate === dateStr
                   : freelanceDate === dateStr;
                 const isToday = new Date().toDateString() === day.toDateString();
+                const isPast = day.getTime() < new Date().setHours(0, 0, 0, 0);
 
                 return (
                   <TouchableOpacity
                     key={dateStr}
                     style={styles.dayCell}
+                    disabled={isPast}
                     onPress={() => {
                       if (calendarTarget === 'newContract') {
                         setDate(dateStr);
@@ -3424,13 +3426,14 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   >
                     <View style={[
                       styles.dayInnerCircle,
-                      isSelected && styles.dayInnerCircleSelected,
-                      isToday && !isSelected && styles.dayInnerCircleToday
+                      !isPast && isSelected && styles.dayInnerCircleSelected,
+                      !isPast && isToday && !isSelected && styles.dayInnerCircleToday
                     ]}>
                       <Text style={[
                         styles.dayText,
-                        isSelected && styles.dayTextSelected,
-                        isToday && !isSelected && styles.dayTextToday
+                        isPast && { color: '#CBD5E1' },
+                        !isPast && isSelected && styles.dayTextSelected,
+                        !isPast && isToday && !isSelected && styles.dayTextToday
                       ]}>
                         {day.getDate()}
                       </Text>
