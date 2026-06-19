@@ -51,6 +51,7 @@ const CustomInput = ({
       
       <ContainerComponent onPress={containerPressHandler} {...(onPress ? { activeOpacity: 0.7 } : {})}>
         <View
+          pointerEvents={onPress ? "none" : "auto"}
           style={[
             styles.inputContainer,
             isFocused && styles.inputFocused,

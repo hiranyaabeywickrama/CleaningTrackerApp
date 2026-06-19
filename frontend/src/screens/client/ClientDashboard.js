@@ -549,23 +549,25 @@ const ClientDashboard = ({ user, onLogout }) => {
                 return (
                   <TouchableOpacity
                     key={dateStr}
-                    style={[
-                      styles.dayCell,
-                      isSelected && styles.dayCellSelected,
-                      isToday && !isSelected && styles.dayCellToday
-                    ]}
+                    style={styles.dayCell}
                     onPress={() => {
                       setPostDate(dateStr);
                       setShowCalendarModal(false);
                     }}
                   >
-                    <Text style={[
-                      styles.dayText,
-                      isSelected && styles.dayTextSelected,
-                      isToday && !isSelected && styles.dayTextToday
+                    <View style={[
+                      styles.dayInnerCircle,
+                      isSelected && styles.dayInnerCircleSelected,
+                      isToday && !isSelected && styles.dayInnerCircleToday
                     ]}>
-                      {day.getDate()}
-                    </Text>
+                      <Text style={[
+                        styles.dayText,
+                        isSelected && styles.dayTextSelected,
+                        isToday && !isSelected && styles.dayTextToday
+                      ]}>
+                        {day.getDate()}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -1109,7 +1111,7 @@ const styles = StyleSheet.create({
   calendarNavBtn: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: 18,
     backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center'
@@ -1151,16 +1153,21 @@ const styles = StyleSheet.create({
     height: 44,
     marginBottom: 8,
     justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC'
+    alignItems: 'center'
   },
-  dayCellSelected: {
-    backgroundColor: Colors.primary,
+  dayInnerCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  dayCellToday: {
-    borderWidth: 1,
-    borderColor: '#94A3B8'
+  dayInnerCircleSelected: {
+    backgroundColor: Colors.primary
+  },
+  dayInnerCircleToday: {
+    borderWidth: 1.5,
+    borderColor: Colors.secondary
   },
   dayText: {
     fontSize: 13,
@@ -1171,7 +1178,8 @@ const styles = StyleSheet.create({
     color: '#fff'
   },
   dayTextToday: {
-    color: '#0F172A'
+    color: Colors.secondary,
+    fontWeight: '800'
   },
   calendarCloseBtn: {
     marginTop: 16,

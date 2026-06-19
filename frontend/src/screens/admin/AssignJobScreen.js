@@ -342,15 +342,21 @@ const AssignJobScreen = ({ onJobCreated }) => {
                 return (
                   <TouchableOpacity
                     key={dateString}
-                    style={[styles.dayCell, selected && styles.dayCellSelected, isToday && !selected && styles.dayCellToday]}
+                    style={styles.dayCell}
                     onPress={() => {
                       setJobDate(dateString);
                       setShowCalendarModal(false);
                     }}
                   >
-                    <Text style={[styles.dayText, selected && styles.dayTextSelected, isToday && !selected && styles.dayTextToday]}>
-                      {day.getDate()}
-                    </Text>
+                    <View style={[
+                      styles.dayInnerCircle,
+                      selected && styles.dayInnerCircleSelected,
+                      isToday && !selected && styles.dayInnerCircleToday
+                    ]}>
+                      <Text style={[styles.dayText, selected && styles.dayTextSelected, isToday && !selected && styles.dayTextToday]}>
+                        {day.getDate()}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -529,23 +535,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   dayCellEmpty: {
-    width: 36,
-    height: 36,
-    marginBottom: 8
+    width: '14.28%',
+    height: 44,
+    marginVertical: 2
   },
   dayCell: {
-    width: 36,
-    height: 36,
-    marginBottom: 8,
+    width: '14.28%',
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 18,
-    backgroundColor: '#F8FAFC'
+    marginVertical: 2
   },
-  dayCellSelected: {
-    backgroundColor: Colors.primary,
+  dayInnerCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  dayCellToday: {
+  dayInnerCircleSelected: {
+    backgroundColor: Colors.primary
+  },
+  dayInnerCircleToday: {
     borderWidth: 1.5,
     borderColor: Colors.secondary
   },

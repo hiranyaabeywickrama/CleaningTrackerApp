@@ -861,7 +861,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
     if (selectedPackage.name === 'Basic') return 299; // Fixed price
 
     // Premium Package: $199 base + $25 per worker slot
-    const crewSize = Math.max(1, requiredWorkersCount);
+    const crewSize = Math.max(1, selectedWorkers.length);
     return 199 + (crewSize - 1) * 25;
   };
 
@@ -879,11 +879,10 @@ const ContractorDashboard = ({ user, onLogout }) => {
       return;
     }
 
-    const minCrew = selectedPackage.name === 'Premium' ? requiredWorkersCount : 1;
-    if (selectedWorkers.length < minCrew) {
+    if (selectedWorkers.length < 1) {
       Alert.alert(
-        'Insufficient Crew Selected',
-        `Please select at least ${minCrew} available crew member(s) to fulfill the requirements of this contract.`
+        'No Crew Selected',
+        'Please select at least 1 available crew member to fulfill the requirements of this contract.'
       );
       return;
     }
@@ -925,7 +924,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
         longitude: parseFloat(longitude),
         packageId: selectedPackage._id,
         workers: selectedWorkers.map(w => w._id),
-        requiredWorkersCount: selectedPackage.name === 'Premium' ? requiredWorkersCount : selectedWorkers.length,
+        requiredWorkersCount: selectedWorkers.length,
         isUrgent: selectedPackage.name === 'Premium' ? isUrgent : false,
         date,
         startTime,
@@ -2071,11 +2070,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   return (
                     <TouchableOpacity
                       key={dateStr}
-                      style={[
-                        styles.dayCell,
-                        isSelected && styles.dayCellSelected,
-                        isToday && !isSelected && styles.dayCellToday
-                      ]}
+                      style={styles.dayCell}
                       onPress={() => {
                         if (calendarTarget === 'newContract') {
                           setDate(dateStr);
@@ -2087,13 +2082,19 @@ const ContractorDashboard = ({ user, onLogout }) => {
                         setShowCalendarModal(false);
                       }}
                     >
-                      <Text style={[
-                        styles.dayText,
-                        isSelected && styles.dayTextSelected,
-                        isToday && !isSelected && styles.dayTextToday
+                      <View style={[
+                        styles.dayInnerCircle,
+                        isSelected && styles.dayInnerCircleSelected,
+                        isToday && !isSelected && styles.dayInnerCircleToday
                       ]}>
-                        {day.getDate()}
-                      </Text>
+                        <Text style={[
+                          styles.dayText,
+                          isSelected && styles.dayTextSelected,
+                          isToday && !isSelected && styles.dayTextToday
+                        ]}>
+                          {day.getDate()}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -3132,29 +3133,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                     icon="📝"
                   />
 
-                  {/* Crew size stepper (Premium only) */}
-                  {selectedPackage.name === 'Premium' && (
-                    <View style={styles.crewStepperBox}>
-                      <Text style={styles.stepperLabel}>Premium Crew Size Required:</Text>
-                      <View style={styles.stepperRow}>
-                        <TouchableOpacity
-                          style={[styles.stepBtn, requiredWorkersCount <= 1 && styles.stepBtnDisabled]}
-                          disabled={requiredWorkersCount <= 1}
-                          onPress={() => setRequiredWorkersCount(c => Math.max(1, c - 1))}
-                        >
-                          <Text style={styles.stepBtnText}>−</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.stepperValue}>{requiredWorkersCount}</Text>
-                        <TouchableOpacity
-                          style={[styles.stepBtn, requiredWorkersCount >= 50 && styles.stepBtnDisabled]}
-                          disabled={requiredWorkersCount >= 50}
-                          onPress={() => setRequiredWorkersCount(c => Math.min(50, c + 1))}
-                        >
-                          <Text style={styles.stepBtnText}>+</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
+                  {/* Crew size stepper removed */}
 
 
 
@@ -5411,24 +5390,31 @@ const styles = StyleSheet.create({
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start'
+    justifyContent: 'space-between'
   },
   dayCell: {
     width: '14.28%',
-    height: 36,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 18,
-    marginVertical: 4
+    marginVertical: 2
   },
   dayCellEmpty: {
     width: '14.28%',
-    height: 36
+    height: 44,
+    marginVertical: 2
   },
-  dayCellSelected: {
+  dayInnerCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  dayInnerCircleSelected: {
     backgroundColor: '#10B981'
   },
-  dayCellToday: {
+  dayInnerCircleToday: {
     borderWidth: 1.5,
     borderColor: '#1E3A8A'
   },
