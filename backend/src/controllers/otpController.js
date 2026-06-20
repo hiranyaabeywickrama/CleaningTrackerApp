@@ -49,15 +49,19 @@ exports.requestOtp = async (req, res) => {
     const existingUser = await User.findOne({ email: cleanEmail });
 
     if (existingUser) {
-      // Existing user: automatically use their registered role!
-      requestedRole = existingUser.role;
+      if (existingUser.role !== requestedRole) {
+        return res.status(400).json({
+          success: false,
+          message: 'please create account this email'
+        });
+      }
       // Existing user login — no extra fields needed, just email + OTP
     } else {
       // If no name is provided, this is a login request for an unregistered email!
       if (!name) {
         return res.status(404).json({
           success: false,
-          message: 'This email address is not registered. Please create an account first.'
+          message: 'please create account this email'
         });
       }
 
