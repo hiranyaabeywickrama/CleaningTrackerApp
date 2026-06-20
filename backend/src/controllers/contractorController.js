@@ -296,7 +296,12 @@ exports.getClientRequests = async (req, res) => {
     }
     
     if (locations.length > 0) {
-      filter.location = { $in: locations };
+      const escapedLocs = locations
+        .map(loc => loc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'))
+        .filter(Boolean);
+      if (escapedLocs.length > 0) {
+        filter.location = { $regex: escapedLocs.join('|'), $options: 'i' };
+      }
     }
 
     const requests = await ClientRequest.find(filter)

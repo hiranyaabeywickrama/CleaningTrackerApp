@@ -93,6 +93,8 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+// Trigger nodemon reload 2
+
 // Auto-expire pending contract requests every minute
 setInterval(async () => {
   try {
