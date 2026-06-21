@@ -18,6 +18,7 @@ import { clientAPI } from '../../api/client';
 import CustomInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
 import AppFooter from '../../components/AppFooter';
+import TimeInput from '../../components/TimeInput';
 import backScrollEmitter from '../../utils/backScrollEmitter';
 
 const CATEGORIES = [
@@ -441,7 +442,7 @@ const ClientDashboard = ({ user, onLogout }) => {
               label="Location / Address"
               value={postLocation}
               onChangeText={handlePlaceSearch}
-              placeholder="e.g. New York, Brooklyn Office"
+              placeholder="Enter city, state, country, or full address"
               icon="📍"
               required
             />
@@ -472,7 +473,7 @@ const ClientDashboard = ({ user, onLogout }) => {
                 <CustomInput
                   label="Target Date"
                   value={postDate}
-                  placeholder="Select Date"
+                  placeholder="Select your preferred service date"
                   icon="📅"
                   required
                   onPress={() => {
@@ -482,12 +483,11 @@ const ClientDashboard = ({ user, onLogout }) => {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <CustomInput
+                <TimeInput
                   label="Start Time"
                   value={postTime}
                   onChangeText={setPostTime}
-                  onBlur={handlePostTimeBlur}
-                  placeholder="09:00"
+                  placeholder="Example: 9:00 AM or 2:30 PM"
                   icon="🕒"
                   required
                 />

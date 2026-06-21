@@ -4,6 +4,7 @@ import backScrollEmitter from '../../utils/backScrollEmitter';
 import { Colors } from '../../theme/colors';
 import CustomInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
+import TimeInput from '../../components/TimeInput';
 import { authAPI, jobsAPI } from '../../api/client';
 
 const AssignJobScreen = ({ onJobCreated }) => {
@@ -225,7 +226,7 @@ const AssignJobScreen = ({ onJobCreated }) => {
           label="Street Address"
           value={address}
           onChangeText={setAddress}
-          placeholder="e.g. 500 Fifth Avenue, NY"
+          placeholder="Enter city, state, country, or full address"
           required
         />
 
@@ -280,7 +281,7 @@ const AssignJobScreen = ({ onJobCreated }) => {
             <CustomInput
               label="Scheduled Date"
               value={jobDate}
-              placeholder="Select Date"
+              placeholder="Select your preferred service date"
               icon="📅"
               required
               onPress={() => {
@@ -290,13 +291,12 @@ const AssignJobScreen = ({ onJobCreated }) => {
             />
           </View>
           <View style={styles.halfWidth}>
-            <CustomInput
+            <TimeInput
               label="Start Time"
               value={jobTime}
               onChangeText={setJobTime}
-              onBlur={handleJobTimeBlur}
-              placeholder="09:00"
-              keyboardType="numeric"
+              placeholder="Example: 9:00 AM or 2:30 PM"
+              icon="🕒"
               required
             />
           </View>

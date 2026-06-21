@@ -289,7 +289,10 @@ exports.getClientRequests = async (req, res) => {
     const tags = req.user.tags || [];
     const locations = req.user.locations || [];
     
-    const filter = { status: 'pending' };
+    const filter = { 
+      status: 'pending',
+      'offers.contractor': { $ne: req.user.id }
+    };
 
     if (tags.length > 0) {
       filter.category = { $in: tags };
@@ -339,15 +342,14 @@ exports.submitOffer = async (req, res) => {
 
     const existingOffer = request.offers.find(o => o.contractor.toString() === req.user.id);
     if (existingOffer) {
-      existingOffer.price = parseFloat(price);
-      existingOffer.createdAt = Date.now();
-    } else {
-      request.offers.push({
-        contractor: req.user.id,
-        price: parseFloat(price),
-        status: 'pending'
-      });
+      return res.status(400).json({ success: false, message: 'You have already submitted a bid for this request' });
     }
+
+    request.offers.push({
+      contractor: req.user.id,
+      price: parseFloat(price),
+      status: 'pending'
+    });
 
     await request.save();
 

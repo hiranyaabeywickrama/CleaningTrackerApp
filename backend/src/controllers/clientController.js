@@ -111,9 +111,8 @@ exports.acceptOffer = async (req, res) => {
       if (basicPkg) packageId = basicPkg._id;
     }
 
-    // Lookup any worker of this contractor to auto-assign, or contractor can assign later
-    const contractorWorkers = await User.find({ contractorId: contractor._id });
-    const assignedWorkers = contractorWorkers.slice(0, 1).map(w => w._id); // Assign at least 1 worker if available
+    // Contractor will select and assign crew members manually later
+    const assignedWorkers = [];
 
     // Create contract
     const contract = await Contract.create({

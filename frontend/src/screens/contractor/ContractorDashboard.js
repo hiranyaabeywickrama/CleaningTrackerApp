@@ -21,6 +21,7 @@ import { Colors } from '../../theme/colors';
 import { contractorAPI, getBaseUrl, gpsAPI } from '../../api/client';
 import CustomInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
+import TimeInput from '../../components/TimeInput';
 import AppFooter from '../../components/AppFooter';
 import io from 'socket.io-client';
 import MapViewContainer from '../../components/MapViewContainer';
@@ -178,7 +179,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
     if (showCalendarModal) {
       setShowCalendarModal(false);
     }
-    if (nextTab !== 'roster' && selectedRosterWorker) {
+    if (nextTab !== 'roster' && nextTab !== 'newContract' && selectedRosterWorker) {
       setSelectedRosterWorker(null);
     }
     setTabHistory((prev) => {
@@ -1906,7 +1907,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
             <Text style={styles.fieldGroupLabel}>Search Address/Place (Easiest Method) 🔍</Text>
             <TextInput
               style={styles.searchPlaceInput}
-              placeholder="Type place name (e.g. Times Square, Central Park)"
+              placeholder="Enter city, state, country, or full address"
               value={freelanceSearchQuery}
               onChangeText={handleFreelancePlaceSearch}
               placeholderTextColor="#94A3B8"
@@ -1969,7 +1970,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
               <CustomInput
                 label="Date"
                 value={freelanceDate}
-                placeholder="Select Date"
+                placeholder="Select your preferred service date"
                 icon="📅"
                 required
                 onPress={() => {
@@ -1980,12 +1981,11 @@ const ContractorDashboard = ({ user, onLogout }) => {
               />
             </View>
             <View style={{ flex: 1 }}>
-              <CustomInput
+              <TimeInput
                 label="Time"
                 value={freelanceTime}
                 onChangeText={setFreelanceTime}
-                onBlur={handleFreelanceTimeBlur}
-                placeholder="HH:MM"
+                placeholder="Example: 9:00 AM or 2:30 PM"
                 icon="🕒"
                 required
               />
@@ -2804,7 +2804,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                     <Text style={styles.fieldGroupLabel}>Search Address/Place (Easiest Method) 🔍</Text>
                     <TextInput
                       style={styles.searchPlaceInput}
-                      placeholder="Type place name (e.g. Times Square, Central Park)"
+                      placeholder="Enter city, state, country, or full address"
                       value={searchQuery}
                       onChangeText={handlePlaceSearch}
                       placeholderTextColor="#94A3B8"
@@ -2860,7 +2860,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                       <CustomInput
                         label="Date"
                         value={date}
-                        placeholder="Select Date"
+                        placeholder="Select your preferred service date"
                         icon="📅"
                         required
                         onPress={() => {
@@ -2871,14 +2871,13 @@ const ContractorDashboard = ({ user, onLogout }) => {
                       />
                     </View>
                     <View style={{ width: '29%' }}>
-                      <CustomInput
+                      <TimeInput
                         label="Start Time"
                         value={startTime}
                         onChangeText={setStartTime}
-                        onBlur={handleNewContractTimeBlur}
-                        placeholder="09:00"
-                        keyboardType="numeric"
-                        maxLength={5}
+                        placeholder="Example: 9:00 AM or 2:30 PM"
+                        icon="🕒"
+                        required
                       />
                     </View>
                     <View style={{ width: '29%' }}>
