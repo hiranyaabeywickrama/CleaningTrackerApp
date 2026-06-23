@@ -2854,9 +2854,9 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
 
 
-                  {/* Date, Time, Duration */}
+                  {/* Date and Time row */}
                   <View style={styles.rowFields}>
-                    <View style={{ width: '38%' }}>
+                    <View style={{ flex: 1 }}>
                       <CustomInput
                         label="Date"
                         value={date}
@@ -2870,7 +2870,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                         }}
                       />
                     </View>
-                    <View style={{ width: '29%' }}>
+                    <View style={{ flex: 1 }}>
                       <TimeInput
                         label="Start Time"
                         value={startTime}
@@ -2880,16 +2880,15 @@ const ContractorDashboard = ({ user, onLogout }) => {
                         required
                       />
                     </View>
-                    <View style={{ width: '29%' }}>
-                      <CustomInput
-                        label="Duration (Min)"
-                        value={durationMinutes}
-                        onChangeText={setDurationMinutes}
-                        placeholder="120"
-                        keyboardType="numeric"
-                      />
-                    </View>
                   </View>
+
+                  <CustomInput
+                    label="Duration (Min)"
+                    value={durationMinutes}
+                    onChangeText={setDurationMinutes}
+                    placeholder="120"
+                    keyboardType="numeric"
+                  />
 
                   <CustomInput
                     label="Special Notes/Instructions"
