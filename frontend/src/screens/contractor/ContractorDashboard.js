@@ -794,6 +794,11 @@ const ContractorDashboard = ({ user, onLogout }) => {
   const handleFreelanceTimeBlur = () => {
     let cleanTime = freelanceTime.trim();
     if (!cleanTime) {
+      setFreelanceTime(getCurrentTime24());
+      return;
+    }
+    
+    // Auto-insert leading zero if format is H:MM
     const singleHourRegex = /^([0-9]):([0-5][0-9])$/;
     if (singleHourRegex.test(cleanTime)) {
       cleanTime = '0' + cleanTime;
@@ -809,11 +814,12 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timeRegex.test(cleanTime)) {
+      const defaultTime = getCurrentTime24();
       Alert.alert(
         'Invalid Time Format',
-        'Time must be in 24-hour HH:MM format (e.g., 09:00 or 17:30). Reverting to default (09:00).'
+        `Time must be in 24-hour HH:MM format (e.g., 09:00 or 17:30). Reverting to default (${defaultTime}).`
       );
-      setFreelanceTime('09:00');
+      setFreelanceTime(defaultTime);
     } else {
       setFreelanceTime(cleanTime);
     }
