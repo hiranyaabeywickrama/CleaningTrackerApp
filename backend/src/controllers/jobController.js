@@ -177,7 +177,7 @@ exports.updateJobStatus = async (req, res) => {
     }
 
     // Ensure worker is the one assigned
-    if (job.assignedWorker && job.assignedWorker.toString() !== req.user.id && req.user.role !== 'admin') {
+    if ((!job.assignedWorker || job.assignedWorker.toString() !== req.user.id) && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'You are not authorized to update this job' });
     }
 
@@ -197,6 +197,15 @@ exports.updateJobStatus = async (req, res) => {
       if (job.assignedWorker) {
         await User.findByIdAndUpdate(job.assignedWorker, { status: 'cleaning' });
       }
+
+      // Sync corresponding WorkerAssignment check-in time and status
+      if (job.contractId) {
+        const WorkerAssignment = require('../models/WorkerAssignment');
+        await WorkerAssignment.findOneAndUpdate(
+          { contractId: job.contractId, workerId: req.user.id },
+          { checkInTime: updateFields.actualStartTime, workerStatus: 'Working' }
+        );
+      }
     } else if (status === 'completed') {
       if (job.status !== 'started') {
         return res.status(400).json({ success: false, message: 'Cannot complete a job that has not been started' });
@@ -215,6 +224,42 @@ exports.updateJobStatus = async (req, res) => {
       // Update worker user status back to active shift
       if (job.assignedWorker) {
         await User.findByIdAndUpdate(job.assignedWorker, { status: 'active_shift' });
+      }
+
+      // Sync corresponding WorkerAssignment check-out details
+      if (job.contractId) {
+        const WorkerAssignment = require('../models/WorkerAssignment');
+        const assignment = await WorkerAssignment.findOne({ contractId: job.contractId, workerId: req.user.id });
+        if (assignment && !assignment.checkOutTime) {
+          assignment.checkOutTime = updateFields.actualEndTime;
+          assignment.workerStatus = 'Completed';
+          
+          const assignCheckIn = assignment.checkInTime || actualStart;
+          const assignmentDiffMs = assignment.checkOutTime - assignCheckIn;
+          const totalMinutes = Math.floor(assignmentDiffMs / (1000 * 60));
+          
+          let extraOutsideMins = 0;
+          if (assignment.outsideStartTime) {
+            const outsideMs = assignment.checkOutTime - assignment.outsideStartTime;
+            extraOutsideMins = Math.floor(outsideMs / (1000 * 60));
+            assignment.timeSpentOutsideMinutes = (assignment.timeSpentOutsideMinutes || 0) + extraOutsideMins;
+            assignment.outsideStartTime = null;
+          }
+
+          assignment.actualWorkedMinutes = Math.max(0, Math.round(totalMinutes - (assignment.timeSpentOutsideMinutes || 0)));
+
+          // Generate GPS Attendance Summary
+          const violations = assignment.totalViolations || 0;
+          if (violations === 0) {
+            assignment.gpsAttendanceSummary = 'Good';
+          } else if (violations <= 2) {
+            assignment.gpsAttendanceSummary = 'Minor Issues';
+          } else {
+            assignment.gpsAttendanceSummary = 'Attendance Warning';
+          }
+
+          await assignment.save();
+        }
       }
     }
 

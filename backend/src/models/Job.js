@@ -44,6 +44,10 @@ const JobSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User' // Contractor associated with job
   },
+  contractId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Contract' // Link to the original contract/assignment
+  },
   startTime: {
     type: Date,
     required: [true, 'Please specify a scheduled start time']

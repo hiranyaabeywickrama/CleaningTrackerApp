@@ -644,6 +644,7 @@ exports.approveFreelanceWorker = async (req, res) => {
       longitude: contract.location.coordinates.lng,
       assignedWorker: workerId,
       contractor: req.user.id,
+      contractId: contract._id,
       startTime: baseDate,
       expectedHours: freelanceJob.hours,
       notes: contract.notes,

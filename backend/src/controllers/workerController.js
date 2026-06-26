@@ -42,6 +42,7 @@ const createJobForWorker = async (contract, workerId) => {
     longitude: contract.location.coordinates.lng,
     assignedWorker: workerId,
     contractor: contract.contractorId,
+    contractId: contract._id,
     startTime: baseDate,
     expectedHours: contract.schedule.durationMinutes / 60 || 2,
     notes: contract.notes,
@@ -248,7 +249,17 @@ exports.startAssignmentJob = async (req, res) => {
     }
 
     // Validate allocated time (30 minutes buffer before scheduled start time)
-    if (assignment.contractId && assignment.contractId.schedule) {
+    let startTimeToCheck = null;
+    const Job = require('../models/Job');
+    const job = await Job.findOne({
+      assignedWorker: req.user.id,
+      contractId: assignment.contractId?._id || assignment.contractId,
+      status: 'pending'
+    });
+
+    if (job) {
+      startTimeToCheck = job.startTime;
+    } else if (assignment.contractId && assignment.contractId.schedule) {
       const schedule = assignment.contractId.schedule;
       const baseDate = new Date(schedule.date);
       const [hours, minutes] = (schedule.startTime || '09:00').split(':');
@@ -256,8 +267,11 @@ exports.startAssignmentJob = async (req, res) => {
       baseDate.setMinutes(parseInt(minutes, 10) || 0);
       baseDate.setSeconds(0);
       baseDate.setMilliseconds(0);
+      startTimeToCheck = baseDate;
+    }
 
-      const allowedTime = baseDate.getTime() - 30 * 60 * 1000;
+    if (startTimeToCheck) {
+      const allowedTime = new Date(startTimeToCheck).getTime() - 30 * 60 * 1000;
       if (Date.now() < allowedTime) {
         return res.status(400).json({
           success: false,
@@ -272,7 +286,7 @@ exports.startAssignmentJob = async (req, res) => {
 
     // Also update associated Job if exists
     await Job.findOneAndUpdate(
-      { assignedWorker: req.user.id, status: 'pending' },
+      { assignedWorker: req.user.id, contractId: assignment.contractId?._id || assignment.contractId, status: 'pending' },
       { status: 'started', actualStartTime: new Date() }
     );
 
@@ -335,7 +349,7 @@ exports.endAssignmentJob = async (req, res) => {
 
     // Also update associated Job if exists
     await Job.findOneAndUpdate(
-      { assignedWorker: req.user.id, status: 'started' },
+      { assignedWorker: req.user.id, contractId: assignment.contractId?._id || assignment.contractId, status: 'started' },
       { 
         status: 'completed', 
         actualEndTime: new Date(), 
@@ -498,6 +512,7 @@ exports.applyForFreelanceJob = async (req, res) => {
         longitude: contract.location.coordinates.lng,
         assignedWorker: req.user.id,
         contractor: freelanceJob.contractor,
+        contractId: contract._id,
         startTime: baseDate,
         expectedHours: freelanceJob.hours,
         notes: contract.notes,
