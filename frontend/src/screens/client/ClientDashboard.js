@@ -742,6 +742,7 @@ const ClientDashboard = ({ user, onLogout }) => {
                   icon="🕒"
                   required
                 />
+              </View>
             </View>
 
             <View style={styles.rowFields}>
