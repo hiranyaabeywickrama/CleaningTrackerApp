@@ -233,7 +233,7 @@ exports.markNotificationRead = async (req, res) => {
 exports.startAssignmentJob = async (req, res) => {
   try {
     const assignmentId = req.params.id;
-    const assignment = await WorkerAssignment.findById(assignmentId);
+    const assignment = await WorkerAssignment.findById(assignmentId).populate('contractId');
     
     if (!assignment) {
       return res.status(404).json({ success: false, message: 'Assignment not found' });
@@ -245,6 +245,25 @@ exports.startAssignmentJob = async (req, res) => {
 
     if (assignment.checkInTime) {
       return res.status(400).json({ success: false, message: 'Job has already been started' });
+    }
+
+    // Validate allocated time (30 minutes buffer before scheduled start time)
+    if (assignment.contractId && assignment.contractId.schedule) {
+      const schedule = assignment.contractId.schedule;
+      const baseDate = new Date(schedule.date);
+      const [hours, minutes] = (schedule.startTime || '09:00').split(':');
+      baseDate.setHours(parseInt(hours, 10) || 9);
+      baseDate.setMinutes(parseInt(minutes, 10) || 0);
+      baseDate.setSeconds(0);
+      baseDate.setMilliseconds(0);
+
+      const allowedTime = baseDate.getTime() - 30 * 60 * 1000;
+      if (Date.now() < allowedTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot start job yet. You can only start up to 30 minutes prior to the scheduled start time.'
+        });
+      }
     }
 
     assignment.checkInTime = new Date();

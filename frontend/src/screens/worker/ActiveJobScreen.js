@@ -360,7 +360,17 @@ const ActiveJobScreen = ({ route, navigation }) => {
 
   const handleStartCleaning = async () => {
     try {
-      // 1. Request GPS Permissions
+      const allowed = Date.now() >= (new Date(job.startTime).getTime() - 30 * 60 * 1000);
+      if (!allowed) {
+        const jobTimeStr = new Date(job.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const jobDateStr = new Date(job.startTime).toLocaleDateString();
+        Alert.alert(
+          'Too Early 🕒',
+          `This job is scheduled to start at ${jobTimeStr} on ${jobDateStr}. You can only start it up to 30 minutes prior to the scheduled start time.`
+        );
+        return;
+      }
+
       const hasPermission = await requestLocationPermissions();
       if (!hasPermission) return;
 
@@ -579,8 +589,9 @@ const ActiveJobScreen = ({ route, navigation }) => {
             
             {status === 'pending' ? (
               <CustomButton
-                title="Start Cleaning 🧼"
+                title={Date.now() >= (new Date(job.startTime).getTime() - 30 * 60 * 1000) ? "Start Cleaning 🧼" : "🔒 Locked until Start Time"}
                 type="success"
+                disabled={Date.now() < (new Date(job.startTime).getTime() - 30 * 60 * 1000)}
                 onPress={handleStartCleaning}
                 style={styles.actionBtn}
               />

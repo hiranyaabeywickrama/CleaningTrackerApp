@@ -184,6 +184,13 @@ exports.updateJobStatus = async (req, res) => {
     const updateFields = { status };
 
     if (status === 'started') {
+      const allowedTime = new Date(job.startTime).getTime() - 30 * 60 * 1000;
+      if (Date.now() < allowedTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot start job yet. You can only start up to 30 minutes prior to the scheduled start time.'
+        });
+      }
       updateFields.actualStartTime = new Date();
       
       // Update worker user status

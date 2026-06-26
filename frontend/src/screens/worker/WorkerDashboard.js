@@ -638,21 +638,33 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                               <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
                             </View>
                           </View>
-                          {job.status === 'pending' && (
-                            <TouchableOpacity
-                              style={styles.startBtn}
-                              activeOpacity={0.8}
-                              onPress={() => {
-                                if (!attendance) {
-                                  Alert.alert('Clock In Required', 'Please Clock In to start your cleaning shift.');
-                                  return;
-                                }
-                                navigation.navigate('ActiveJob', { job });
-                              }}
-                            >
-                              <Text style={styles.startBtnText}>Start Job</Text>
-                            </TouchableOpacity>
-                          )}
+                          {job.status === 'pending' && (() => {
+                            const allowed = Date.now() >= (new Date(job.startTime).getTime() - 30 * 60 * 1000);
+                            return (
+                              <TouchableOpacity
+                                style={[styles.startBtn, !allowed && { backgroundColor: '#94A3B8', shadowColor: '#94A3B8' }]}
+                                activeOpacity={0.8}
+                                onPress={() => {
+                                  if (!attendance) {
+                                    Alert.alert('Clock In Required', 'Please Clock In to start your cleaning shift.');
+                                    return;
+                                  }
+                                  if (!allowed) {
+                                    const jobTimeStr = new Date(job.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    const jobDateStr = new Date(job.startTime).toLocaleDateString();
+                                    Alert.alert(
+                                      'Too Early 🕒',
+                                      `This job is scheduled to start at ${jobTimeStr} on ${jobDateStr}. You can only start it up to 30 minutes prior to the scheduled start time.`
+                                    );
+                                    return;
+                                  }
+                                  navigation.navigate('ActiveJob', { job });
+                                }}
+                              >
+                                <Text style={styles.startBtnText}>{allowed ? 'Start Job' : '🔒 Too Early'}</Text>
+                              </TouchableOpacity>
+                            );
+                          })()}
                           {job.status === 'started' && (
                             <TouchableOpacity
                               style={styles.completeBtn}
