@@ -10,7 +10,7 @@ const Package = require('../models/Package');
  */
 exports.createRequest = async (req, res) => {
   try {
-    const { category, description, location, date, time } = req.body;
+    const { category, description, location, date, time, duration } = req.body;
 
     if (!category || !description || !location || !date || !time) {
       return res.status(400).json({ success: false, message: 'Please provide all request details' });
@@ -22,7 +22,8 @@ exports.createRequest = async (req, res) => {
       description,
       location,
       date: new Date(date),
-      time
+      time,
+      duration: duration ? Number(duration) : undefined
     });
 
     res.status(201).json({ success: true, request });
@@ -132,20 +133,25 @@ exports.acceptOffer = async (req, res) => {
       schedule: {
         date: request.date,
         startTime: request.time,
-        durationMinutes: 120 // Default 2 hours duration
+        durationMinutes: request.duration || 120
       },
       notes: `Accepted Client Request: ${request.description}`,
       status: 'active'
     });
 
-    // Notify Contractor via Socket
+    // Notify Contractor via Socket & persistent database notification
     const io = req.app.get('socketio');
-    if (io) {
-      io.emit(`contractor_notification:${contractor._id}`, {
-        message: `Client ${req.user.name} accepted your offer for ${request.category}!`,
-        response: 'accepted'
-      });
-    }
+    const { notifyUser } = require('../services/notificationService');
+    await notifyUser(io, {
+      userId: contractor._id,
+      type: 'offer_accepted',
+      title: 'Offer Accepted! 🎉',
+      message: `Client ${req.user.name} accepted your offer for ${request.category}!`,
+      socketEvent: 'contractor_notification',
+      data: {
+        contractId: contract._id
+      }
+    });
 
     res.status(200).json({ success: true, message: 'Offer accepted and contract created.', request, contract });
   } catch (error) {

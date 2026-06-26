@@ -14,12 +14,29 @@ import {
   Modal
 } from 'react-native';
 import { Colors } from '../../theme/colors';
-import { clientAPI, authAPI } from '../../api/client';
+import { clientAPI, authAPI, getBaseUrl } from '../../api/client';
+import io from 'socket.io-client';
 import CustomInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
 import AppFooter from '../../components/AppFooter';
 import TimeInput from '../../components/TimeInput';
 import backScrollEmitter from '../../utils/backScrollEmitter';
+import { State, Country, City } from 'country-state-city';
+
+// Pre-map countries for fast lookup
+const countryMap = {};
+Country.getAllCountries().forEach(c => {
+  countryMap[c.isoCode] = { name: c.name, flag: c.flag };
+});
+
+// Pre-map states for fast lookup
+const stateMap = {};
+State.getAllStates().forEach(s => {
+  stateMap[`${s.countryCode}-${s.isoCode}`] = s.name;
+});
+
+// Load raw cities list
+const GLOBAL_CITIES = City.getAllCities();
 
 const CATEGORIES = [
   { id: 'Electrical',   label: 'Electrical',   icon: '🔌' },
@@ -41,16 +58,18 @@ const ClientDashboard = ({ user, onLogout }) => {
   // Home states
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [contractors, setContractors] = useState([]);
-  const [searchLocation, setSearchLocation] = useState(user.state || '');
+  const [searchLocation, setSearchLocation] = useState('');
 
   // Post states
   const [postCategory, setPostCategory] = useState('Cleaning');
   const [postDesc, setPostDesc] = useState('');
-  const [postLocation, setPostLocation] = useState(user.state || '');
-  const [postDate, setPostDate] = useState('2026-06-15');
-  const [postTime, setPostTime] = useState('09:00');
+  const [postLocation, setPostLocation] = useState('');
+  const [postDate, setPostDate] = useState('');
+  const [postTime, setPostTime] = useState('');
+  const [postDuration, setPostDuration] = useState('120');
   const [searchingPlace, setSearchingPlace] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [searchLocationSuggestions, setSearchLocationSuggestions] = useState([]);
 
   // Inbox states
   const [requests, setRequests] = useState([]);
@@ -74,6 +93,64 @@ const ClientDashboard = ({ user, onLogout }) => {
       setProfileState(profileUser.state || '');
     }
   }, [profileUser]);
+
+  // --- Notifications States ---
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [socket, setSocket] = useState(null);
+
+  const fetchNotifications = async () => {
+    setLoadingNotifications(true);
+    try {
+      const res = await authAPI.getNotifications();
+      if (res.success) {
+        setNotifications(res.notifications || []);
+        const unread = (res.notifications || []).filter(n => !n.read).length;
+        setUnreadNotificationsCount(unread);
+      }
+    } catch (e) {
+      console.warn('Failed to load client notifications:', e.message);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    try {
+      await authAPI.markNotificationRead(notif._id);
+      setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, read: true } : n));
+      setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
+      setShowNotificationsModal(false);
+      setActiveTab('inbox');
+    } catch (e) {
+      console.warn('Failed to handle notification click:', e.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  useEffect(() => {
+    if (!user || !user.id) return;
+
+    const newSocket = io(getBaseUrl(), {
+      transports: ['websocket']
+    });
+    setSocket(newSocket);
+
+    newSocket.on(`client_notification:${user.id}`, ({ message }) => {
+      Alert.alert(
+        'Notification 🔔',
+        message
+      );
+      fetchNotifications();
+    });
+
+    return () => newSocket.disconnect();
+  }, [user?.id]);
 
   // Calendar states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -245,53 +322,56 @@ const ClientDashboard = ({ user, onLogout }) => {
     fetchContractors(cat.id);
   };
 
-  const handlePlaceSearch = async (query) => {
+  const handlePlaceSearch = (query) => {
     setPostLocation(query);
-    if (query.trim().length < 3) {
+    if (!query.trim()) {
       setSearchSuggestions([]);
       return;
     }
 
-    try {
-      setSearchingPlace(true);
-      const response = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=en`
-      );
-      const data = await response.json();
-      
-      if (data && data.features) {
-        const mapped = data.features.map((feature) => {
-          const props = feature.properties || {};
-          const coords = feature.geometry?.coordinates || [0, 0];
-          
-          const parts = [];
-          if (props.name) parts.push(props.name);
-          if (props.housenumber) parts.push(props.housenumber);
-          if (props.street) parts.push(props.street);
-          if (props.district) parts.push(props.district);
-          if (props.city) parts.push(props.city);
-          if (props.state) parts.push(props.state);
-          if (props.postcode) parts.push(props.postcode);
-          if (props.country) parts.push(props.country);
-          
-          let displayName = parts.filter(Boolean).join(', ');
-          displayName = displayName
-            .replace(/ශ්‍රී ලංකාව/g, 'Sri Lanka')
-            .replace(/இலங்கை/g, 'Sri Lanka');
-          
-          return {
-            lat: coords[1],
-            lon: coords[0],
-            display_name: displayName
-          };
-        });
-        setSearchSuggestions(mapped);
+    const filtered = [];
+    const lowerQuery = query.toLowerCase().trim();
+    for (let i = 0; i < GLOBAL_CITIES.length; i++) {
+      if (GLOBAL_CITIES[i].name.toLowerCase().includes(lowerQuery)) {
+        filtered.push(GLOBAL_CITIES[i]);
+        if (filtered.length >= 10) break;
       }
-    } catch (e) {
-      console.warn('Place autocomplete search failed:', e.message);
-    } finally {
-      setSearchingPlace(false);
     }
+
+    const mapped = filtered.map(c => {
+      const country = countryMap[c.countryCode];
+      const stateName = stateMap[`${c.countryCode}-${c.stateCode}`] || c.stateCode;
+      return {
+        display_name: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`
+      };
+    });
+    setSearchSuggestions(mapped);
+  };
+
+  const handleSearchLocationChange = (query) => {
+    setSearchLocation(query);
+    if (!query.trim()) {
+      setSearchLocationSuggestions([]);
+      return;
+    }
+
+    const filtered = [];
+    const lowerQuery = query.toLowerCase().trim();
+    for (let i = 0; i < GLOBAL_CITIES.length; i++) {
+      if (GLOBAL_CITIES[i].name.toLowerCase().includes(lowerQuery)) {
+        filtered.push(GLOBAL_CITIES[i]);
+        if (filtered.length >= 10) break;
+      }
+    }
+
+    const mapped = filtered.map(c => {
+      const country = countryMap[c.countryCode];
+      const stateName = stateMap[`${c.countryCode}-${c.stateCode}`] || c.stateCode;
+      return {
+        display_name: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`
+      };
+    });
+    setSearchLocationSuggestions(mapped);
   };
 
   const handlePostTimeBlur = () => {
@@ -340,8 +420,14 @@ const ClientDashboard = ({ user, onLogout }) => {
   };
 
   const handlePostRequest = async () => {
-    if (!postDesc.trim() || !postLocation.trim() || !postDate.trim() || !postTime.trim()) {
+    if (!postDesc.trim() || !postLocation.trim() || !postDate.trim() || !postTime.trim() || !postDuration.trim()) {
       Alert.alert('Required Fields', 'Please fill out all request details.');
+      return;
+    }
+
+    const durationNum = parseInt(postDuration.trim(), 10);
+    if (isNaN(durationNum) || durationNum <= 0) {
+      Alert.alert('Invalid Duration', 'Please enter a valid duration in minutes.');
       return;
     }
 
@@ -358,7 +444,8 @@ const ClientDashboard = ({ user, onLogout }) => {
         description: postDesc.trim(),
         location: postLocation.trim(),
         date: postDate,
-        time: postTime
+        time: postTime,
+        duration: durationNum
       });
       setLoading(false);
 
@@ -371,6 +458,10 @@ const ClientDashboard = ({ user, onLogout }) => {
               text: 'Go to Inbox',
               onPress: () => {
                 setPostDesc('');
+                setPostLocation('');
+                setPostDate('');
+                setPostTime('');
+                setPostDuration('120');
                 setActiveTab('inbox');
               }
             }
@@ -419,6 +510,31 @@ const ClientDashboard = ({ user, onLogout }) => {
             <Text style={styles.portalSubtitle}>{user.name || 'Partner Account'}</Text>
           </View>
         </View>
+        <TouchableOpacity 
+          style={{ position: 'relative', padding: 6 }} 
+          activeOpacity={0.7}
+          onPress={() => setShowNotificationsModal(true)}
+        >
+          <Text style={{ fontSize: 20 }}>🔔</Text>
+          {unreadNotificationsCount > 0 && (
+            <View style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              backgroundColor: '#EF4444',
+              borderRadius: 8,
+              minWidth: 16,
+              height: 16,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: 3
+            }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '900' }}>
+                {unreadNotificationsCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -437,20 +553,43 @@ const ClientDashboard = ({ user, onLogout }) => {
             <Text style={styles.welcomeSubtitle}>Connect with trusted contractors and skilled crew members in your area.</Text>
 
             {/* Location Filter */}
-            <View style={styles.searchRow}>
-              <TextInput
-                style={styles.searchInput}
-                value={searchLocation}
-                onChangeText={setSearchLocation}
-                placeholder="Enter state or city (e.g. New York)"
-                placeholderTextColor="#94A3B8"
-              />
-              <TouchableOpacity
-                style={styles.searchBtn}
-                onPress={() => selectedCategory && fetchContractors(selectedCategory.id)}
-              >
-                <Text style={styles.searchBtnText}>🔍 Find</Text>
-              </TouchableOpacity>
+            <View style={{ zIndex: 10, position: 'relative', width: '100%' }}>
+              <View style={styles.searchRow}>
+                <TextInput
+                  style={styles.searchInput}
+                  value={searchLocation}
+                  onChangeText={handleSearchLocationChange}
+                  placeholder="Enter state or city (e.g. New York)"
+                  placeholderTextColor="#94A3B8"
+                />
+                <TouchableOpacity
+                  style={styles.searchBtn}
+                  onPress={() => selectedCategory && fetchContractors(selectedCategory.id)}
+                >
+                  <Text style={styles.searchBtnText}>🔍 Find</Text>
+                </TouchableOpacity>
+              </View>
+              {searchLocationSuggestions.length > 0 && (
+                <View style={styles.suggestionsBoxAbsolute}>
+                  {searchLocationSuggestions.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setSearchLocation(item.display_name);
+                        setSearchLocationSuggestions([]);
+                        if (selectedCategory) {
+                          fetchContractors(selectedCategory.id, item.display_name);
+                        }
+                      }}
+                    >
+                      <Text style={styles.suggestionText} numberOfLines={1}>
+                        📍 {item.display_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Category Grid */}
@@ -551,35 +690,34 @@ const ClientDashboard = ({ user, onLogout }) => {
               required
             />
 
-            <CustomInput
-              label="Location / Address"
-              value={postLocation}
-              onChangeText={handlePlaceSearch}
-              placeholder="Enter city, state, country, or full address"
-              icon="📍"
-              required
-            />
-            {searchingPlace && (
-              <ActivityIndicator color={Colors.primary} style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
-            )}
-            {searchSuggestions.length > 0 && (
-              <View style={styles.suggestionsBox}>
-                {searchSuggestions.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.suggestionItem}
-                    onPress={() => {
-                      setPostLocation(item.display_name);
-                      setSearchSuggestions([]);
-                    }}
-                  >
-                    <Text style={styles.suggestionText} numberOfLines={1}>
-                      📍 {item.display_name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            <View style={{ zIndex: 10, position: 'relative' }}>
+              <CustomInput
+                label="Location / Address"
+                value={postLocation}
+                onChangeText={handlePlaceSearch}
+                placeholder="Enter city, state, country, or full address"
+                icon="📍"
+                required
+              />
+              {searchSuggestions.length > 0 && (
+                <View style={styles.suggestionsBox}>
+                  {searchSuggestions.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setPostLocation(item.display_name);
+                        setSearchSuggestions([]);
+                      }}
+                    >
+                      <Text style={styles.suggestionText} numberOfLines={1}>
+                        📍 {item.display_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
 
             <View style={styles.rowFields}>
               <View style={{ flex: 1 }}>
@@ -604,7 +742,21 @@ const ClientDashboard = ({ user, onLogout }) => {
                   icon="🕒"
                   required
                 />
+            </View>
+
+            <View style={styles.rowFields}>
+              <View style={{ flex: 1 }}>
+                <CustomInput
+                  label="Duration (Min)"
+                  value={postDuration}
+                  onChangeText={setPostDuration}
+                  placeholder="e.g. 120"
+                  icon="⏱️"
+                  keyboardType="numeric"
+                  required
+                />
               </View>
+              <View style={{ flex: 1 }} />
             </View>
 
             <CustomButton
@@ -637,7 +789,7 @@ const ClientDashboard = ({ user, onLogout }) => {
                       <Text style={styles.requestCategory}>
                         {r.category === 'Electrical' ? '🔌' : r.category === 'Plumbing' ? '🔧' : r.category === 'Cleaning' ? '🧹' : '🛠️'} {r.category} Request
                       </Text>
-                      <Text style={styles.requestDate}>📅 {new Date(r.date).toLocaleDateString()} at {r.time}</Text>
+                      <Text style={styles.requestDate}>📅 {new Date(r.date).toLocaleDateString()} at {r.time}{r.duration ? ` (${r.duration} mins)` : ''}</Text>
                       <Text style={styles.requestLoc}>📍 Location: {r.location}</Text>
                     </View>
                     <View style={[
@@ -830,6 +982,78 @@ const ClientDashboard = ({ user, onLogout }) => {
             <TouchableOpacity 
               style={styles.calendarCloseBtn}
               onPress={() => setShowCalendarModal(false)}
+            >
+              <Text style={styles.calendarCloseBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Notifications Modal */}
+      <Modal
+        visible={showNotificationsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowNotificationsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarContainer}>
+            <View style={styles.calendarHeader}>
+              <Text style={styles.calendarMonthTitle}>🔔 Notifications</Text>
+              <TouchableOpacity 
+                onPress={() => setShowNotificationsModal(false)}
+                style={styles.calendarNavBtn}
+              >
+                <Text style={styles.calendarNavBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              style={{ maxHeight: 350, marginVertical: 10, width: '100%' }}
+              showsVerticalScrollIndicator={false}
+            >
+              {loadingNotifications ? (
+                <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
+              ) : notifications.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: '#64748B', fontSize: 13, marginVertical: 20 }}>
+                  No notifications yet.
+                </Text>
+              ) : (
+                notifications.map(notif => (
+                  <TouchableOpacity
+                    key={notif._id}
+                    style={{
+                      padding: 12,
+                      backgroundColor: notif.read ? '#FFFFFF' : 'rgba(16, 185, 129, 0.05)',
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: notif.read ? '#E2E8F0' : 'rgba(16, 185, 129, 0.2)',
+                      marginBottom: 8
+                    }}
+                    onPress={() => handleNotificationClick(notif)}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 13 }}>
+                        {notif.title}
+                      </Text>
+                      {!notif.read && (
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' }} />
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 12, color: '#475569', marginBottom: 6 }}>
+                      {notif.message}
+                    </Text>
+                    <Text style={{ fontSize: 9.5, color: '#94A3B8', alignSelf: 'flex-end' }}>
+                      {new Date(notif.createdAt).toLocaleString()}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={styles.calendarCloseBtn}
+              onPress={() => setShowNotificationsModal(false)}
             >
               <Text style={styles.calendarCloseBtnText}>Close</Text>
             </TouchableOpacity>
@@ -1452,6 +1676,23 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: '#E2E8F0',
     marginTop: 8,
+    overflow: 'hidden'
+  },
+  suggestionsBoxAbsolute: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: '#E2E8F0',
+    zIndex: 30,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     overflow: 'hidden'
   },
   suggestionItem: {

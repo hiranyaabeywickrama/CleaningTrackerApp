@@ -355,6 +355,18 @@ exports.submitOffer = async (req, res) => {
 
     await request.save();
 
+    const { notifyUser } = require('../services/notificationService');
+    const io = req.app.get('socketio');
+    if (io) {
+      await notifyUser(io, {
+        userId: request.client,
+        type: 'bid_submitted',
+        title: 'New Bid Received! ✉️',
+        message: `Contractor ${req.user.companyName || req.user.name} submitted a bid of $${price} for your ${request.category} request.`,
+        socketEvent: 'client_notification'
+      });
+    }
+
     res.status(200).json({ success: true, message: 'Offer submitted successfully', request });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

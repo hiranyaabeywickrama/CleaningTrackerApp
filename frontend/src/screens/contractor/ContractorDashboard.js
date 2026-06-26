@@ -117,6 +117,9 @@ const ContractorDashboard = ({ user, onLogout }) => {
   const [contracts, setContracts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [bidsSubTab, setBidsSubTab] = useState('open'); // 'open' or 'accepted'
+  const [selectedWorkersForContract, setSelectedWorkersForContract] = useState({}); // { [contractId]: [workerId1, workerId2] }
+  const [expandedAcceptedBidId, setExpandedAcceptedBidId] = useState(null);
 
   // ── Contract Form State ─────────────────────────────────────────────────────
   const [clientName, setClientName] = useState(user?.companyName || user?.name || '');
@@ -1306,7 +1309,10 @@ const ContractorDashboard = ({ user, onLogout }) => {
       setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, read: true } : n));
       setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
       setShowNotificationsModal(false);
-      if (notif.type === 'contract_accepted') {
+      if (notif.type === 'offer_accepted' || (notif.data && notif.data.contractId)) {
+        setBidsSubTab('accepted');
+        navigateToTab('clientRequests');
+      } else if (notif.type === 'contract_accepted') {
         navigateToTab('projects');
       }
     } catch (e) {
@@ -1992,50 +1998,230 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
   // Tab 5: Client requests bidding portal rendering helper
   const renderClientRequestsTab = () => {
-    return (
-      <View>
-        <Text style={styles.rosterTitle}>Client Service Requests Portal</Text>
-        <Text style={styles.sectionSubtitle}>Place bid offers on local client job postings matching your category</Text>
+    const acceptedBids = contracts.filter(c => 
+      (c.status === 'active' || c.status === 'pending') && 
+      c.notes && c.notes.startsWith('Accepted Client Request')
+    );
 
-        {loadingRequests ? (
-          <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
-        ) : clientRequests.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No open client requests matching your business categories and location base.</Text>
+    const toggleWorkerForContract = (contractId, workerId) => {
+      setSelectedWorkersForContract(prev => {
+        const current = prev[contractId] || [];
+        if (current.includes(workerId)) {
+          return { ...prev, [contractId]: current.filter(id => id !== workerId) };
+        } else {
+          return { ...prev, [contractId]: [...current, workerId] };
+        }
+      });
+    };
+
+    const handleAssignCrewForContract = async (contract) => {
+      const selectedIds = selectedWorkersForContract[contract._id] || [];
+      if (selectedIds.length === 0) {
+        Alert.alert('Selection Required ⚠️', 'Please select at least one crew member.');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        let assignedCount = 0;
+        for (const workerId of selectedIds) {
+          const alreadyIn = contract.workers?.some(w => (w._id || w).toString() === workerId.toString());
+          if (!alreadyIn) {
+            await contractorAPI.assignWorker(workerId, contract._id);
+            assignedCount++;
+          }
+        }
+        Alert.alert('Success 🎉', `Successfully assigned ${assignedCount} crew member(s) to this contract.`);
+        setSelectedWorkersForContract(prev => ({ ...prev, [contract._id]: [] }));
+        setExpandedAcceptedBidId(null);
+        loadInitialData(); // Refresh contracts list
+      } catch (e) {
+        Alert.alert('Error ⚠️', 'Failed to assign some crew members.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <View style={{ paddingBottom: 40 }}>
+        {/* Sub-Tab Navigation Bar */}
+        <View style={styles.subTabHeaderRow}>
+          <TouchableOpacity
+            style={[styles.subTabButton, bidsSubTab === 'open' && styles.subTabButtonActive]}
+            onPress={() => setBidsSubTab('open')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.subTabButtonText, bidsSubTab === 'open' && styles.subTabButtonTextActive]}>
+              Open Requests
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.subTabButton, bidsSubTab === 'accepted' && styles.subTabButtonActive]}
+            onPress={() => setBidsSubTab('accepted')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.subTabButtonText, bidsSubTab === 'accepted' && styles.subTabButtonTextActive]}>
+              Accepted Bids ({acceptedBids.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {bidsSubTab === 'open' ? (
+          <View>
+            <Text style={styles.rosterTitle}>Client Service Requests Portal</Text>
+            <Text style={styles.sectionSubtitle}>Place bid offers on local client job postings matching your category</Text>
+
+            {loadingRequests ? (
+              <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 20 }} />
+            ) : clientRequests.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No open client requests matching your business categories and location base.</Text>
+              </View>
+            ) : (
+              clientRequests.map(r => (
+                <View key={r._id} style={styles.clientReqCard}>
+                  <View style={styles.clientReqHeader}>
+                    <Text style={styles.clientReqCategory}>🧹 {r.category} Request</Text>
+                    <View style={styles.priceBadge}>
+                      <Text style={styles.priceBadgeText}>BIDS: {r.offers?.length || 0}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.clientReqDate}>📅 Scheduled: {new Date(r.date).toLocaleDateString()} at {r.time}{r.duration ? ` (${r.duration} mins)` : ''}</Text>
+                  <Text style={styles.clientReqLoc}>📍 Address: {r.location}</Text>
+                  <View style={styles.divider} />
+                  <Text style={styles.clientReqDesc}>Description: {r.description}</Text>
+                  <View style={styles.divider} />
+
+                  <View style={styles.bidInputRow}>
+                    <TextInput
+                      style={styles.bidInput}
+                      value={bidPrices[r._id] || ''}
+                      onChangeText={(v) => setBidPrices(prev => ({ ...prev, [r._id]: v }))}
+                      placeholder="Enter bid price ($)"
+                      keyboardType="numeric"
+                      placeholderTextColor="#94A3B8"
+                    />
+                    <TouchableOpacity
+                      style={styles.bidBtn}
+                      onPress={() => handleSubmitBid(r._id)}
+                    >
+                      <Text style={styles.bidBtnText}>Submit Bid</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         ) : (
-          clientRequests.map(r => (
-            <View key={r._id} style={styles.clientReqCard}>
-              <View style={styles.clientReqHeader}>
-                <Text style={styles.clientReqCategory}>🧹 {r.category} Request</Text>
-                <View style={styles.priceBadge}>
-                  <Text style={styles.priceBadgeText}>BIDS: {r.offers?.length || 0}</Text>
-                </View>
-              </View>
-              <Text style={styles.clientReqDate}>📅 Scheduled: {new Date(r.date).toLocaleDateString()} at {r.time}</Text>
-              <Text style={styles.clientReqLoc}>📍 Address: {r.location}</Text>
-              <View style={styles.divider} />
-              <Text style={styles.clientReqDesc}>Description: {r.description}</Text>
-              <View style={styles.divider} />
+          <View>
+            <Text style={styles.rosterTitle}>Accepted Bid Contracts 🤝</Text>
+            <Text style={styles.sectionSubtitle}>Select and assign crew members to carry out accepted client bids</Text>
 
-              <View style={styles.bidInputRow}>
-                <TextInput
-                  style={styles.bidInput}
-                  value={bidPrices[r._id] || ''}
-                  onChangeText={(v) => setBidPrices(prev => ({ ...prev, [r._id]: v }))}
-                  placeholder="Enter bid price ($)"
-                  keyboardType="numeric"
-                  placeholderTextColor="#94A3B8"
-                />
-                <TouchableOpacity
-                  style={styles.bidBtn}
-                  onPress={() => handleSubmitBid(r._id)}
-                >
-                  <Text style={styles.bidBtnText}>Submit Bid</Text>
-                </TouchableOpacity>
+            {acceptedBids.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No accepted bids yet. Keep bidding to win contracts!</Text>
               </View>
-            </View>
-          ))
+            ) : (
+              acceptedBids.map(c => {
+                const isExpanded = expandedAcceptedBidId === c._id;
+                const assignedCount = c.workers?.length || 0;
+
+                return (
+                  <View key={c._id} style={styles.acceptedBidCard}>
+                    <TouchableOpacity
+                      style={styles.acceptedBidHeader}
+                      onPress={() => setExpandedAcceptedBidId(isExpanded ? null : c._id)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.acceptedBidTitle}>👤 Client: {c.clientName}</Text>
+                        <Text style={styles.acceptedBidSub}>📅 Date: {new Date(c.schedule?.date).toLocaleDateString()} at {c.schedule?.startTime} ({c.schedule?.durationMinutes} mins)</Text>
+                        <Text style={styles.acceptedBidLoc}>📍 Site: {c.location?.address}</Text>
+                      </View>
+                      <View style={[styles.assignCountBadge, assignedCount > 0 ? styles.assignCountActive : styles.assignCountPending]}>
+                        <Text style={styles.assignCountText}>
+                          {assignedCount > 0 ? `Assigned: ${assignedCount}` : 'No Crew Yet'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {isExpanded && (
+                      <View style={styles.acceptedBidDetails}>
+                        <Text style={styles.acceptedBidDesc}>{c.notes}</Text>
+                        <View style={styles.divider} />
+                        
+                        {/* Assigned Crew List */}
+                        {assignedCount > 0 && (
+                          <View style={{ marginBottom: 12 }}>
+                            <Text style={styles.assignedCrewTitle}>Current Assigned Crew:</Text>
+                            <View style={styles.assignedCrewList}>
+                              {c.workers.map(w => {
+                                const workerObj = rosterWorkers.find(rw => rw._id === (w._id || w));
+                                return (
+                                  <View key={w._id || w} style={styles.assignedCrewItem}>
+                                    <Text style={styles.assignedCrewText}>👤 {workerObj ? workerObj.name : 'Unknown Crew'}</Text>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                            <View style={styles.divider} />
+                          </View>
+                        )}
+
+                        {/* Crew Selector Checklist */}
+                        <Text style={styles.selectCrewHeader}>Select crew member(s) to assign:</Text>
+                        {rosterWorkers.length === 0 ? (
+                          <Text style={styles.noWorkersText}>No crew members found on your roster. Please add workers first.</Text>
+                        ) : (
+                          <View style={styles.crewChecklist}>
+                            {rosterWorkers.map(worker => {
+                              const isAssigned = c.workers?.some(w => (w._id || w).toString() === worker._id.toString());
+                              const isChecked = (selectedWorkersForContract[c._id] || []).includes(worker._id);
+
+                              return (
+                                <TouchableOpacity
+                                  key={worker._id}
+                                  style={[
+                                    styles.checklistRow,
+                                    isAssigned && styles.checklistRowDisabled
+                                  ]}
+                                  disabled={isAssigned}
+                                  onPress={() => toggleWorkerForContract(c._id, worker._id)}
+                                  activeOpacity={0.7}
+                                >
+                                  <View style={styles.checkboxContainer}>
+                                    <Text style={styles.checkboxIcon}>
+                                      {isAssigned ? '✓' : isChecked ? '☑️' : '⬜'}
+                                    </Text>
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={[styles.checklistWorkerName, isAssigned && styles.checklistTextDisabled]}>
+                                      {worker.name} {isAssigned && '(Already Assigned)'}
+                                    </Text>
+                                    <Text style={styles.checklistWorkerStatus}>
+                                      Status: {worker.status || 'available'}
+                                    </Text>
+                                  </View>
+                                </TouchableOpacity>
+                              );
+                            })}
+                            
+                            <TouchableOpacity
+                              style={styles.confirmAssignBtn}
+                              onPress={() => handleAssignCrewForContract(c)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.confirmAssignBtnText}>Assign Selected Crew</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </View>
         )}
       </View>
     );
@@ -6618,6 +6804,190 @@ const styles = StyleSheet.create({
   lockedUpgradeBtnText: {
     color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: '800'
+  },
+  subTabHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+    gap: 4
+  },
+  subTabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8
+  },
+  subTabButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1
+  },
+  subTabButtonText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '700'
+  },
+  subTabButtonTextActive: {
+    color: Colors.primary
+  },
+  acceptedBidCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1
+  },
+  acceptedBidHeader: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  acceptedBidTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4
+  },
+  acceptedBidSub: {
+    fontSize: 12,
+    color: '#475569',
+    marginBottom: 4,
+    fontWeight: '600'
+  },
+  acceptedBidLoc: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600'
+  },
+  assignCountBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  assignCountActive: {
+    backgroundColor: '#DEF7EC'
+  },
+  assignCountPending: {
+    backgroundColor: '#FEF3C7'
+  },
+  assignCountText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#03543F'
+  },
+  acceptedBidDetails: {
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F6'
+  },
+  acceptedBidDesc: {
+    fontSize: 12.5,
+    color: '#475569',
+    lineHeight: 18,
+    fontWeight: '600'
+  },
+  assignedCrewTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 8
+  },
+  assignedCrewList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6
+  },
+  assignedCrewItem: {
+    backgroundColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8
+  },
+  assignedCrewText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569'
+  },
+  selectCrewHeader: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 10
+  },
+  noWorkersText: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginVertical: 10
+  },
+  crewChecklist: {
+    gap: 8
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    gap: 10
+  },
+  checklistRowDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+    opacity: 0.8
+  },
+  checkboxContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  checkboxIcon: {
+    fontSize: 16
+  },
+  checklistWorkerName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A'
+  },
+  checklistTextDisabled: {
+    color: '#94A3B8'
+  },
+  checklistWorkerStatus: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600'
+  },
+  confirmAssignBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8
+  },
+  confirmAssignBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '800'
   }
 });

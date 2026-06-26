@@ -26,6 +26,10 @@ const ClientRequestSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  duration: {
+    type: Number,
+    required: false
+  },
   status: {
     type: String,
     enum: ['pending', 'active', 'completed', 'cancelled'],
