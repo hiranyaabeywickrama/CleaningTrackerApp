@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, RefreshControl, StyleSheet, Alert, TouchableOpacity, Image, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, StyleSheet, Alert, TouchableOpacity, Image, ActivityIndicator, Modal, BackHandler } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { jobsAPI, attendanceAPI, workerAPI, getBaseUrl, authAPI } from '../../api/client';
 import AppFooter from '../../components/AppFooter';
@@ -9,7 +9,39 @@ import io from 'socket.io-client';
 import backScrollEmitter from '../../utils/backScrollEmitter';
 
 const WorkerDashboard = ({ user, onLogout, navigation }) => {
-  const [activeTab, setActiveTab] = useState('home'); // 'home', 'freelance', 'profile'
+  const [activeTab, _setActiveTab] = useState('home'); // 'home', 'freelance', 'profile'
+  const [tabHistory, setTabHistory] = useState(['home']);
+
+  const setActiveTab = (tab) => {
+    setTabHistory(prev => {
+      if (prev[prev.length - 1] === tab) return prev;
+      return [...prev, tab];
+    });
+    _setActiveTab(tab);
+  };
+
+  const goBack = () => {
+    if (tabHistory.length > 1) {
+      setTabHistory(prev => {
+        const history = [...prev];
+        history.pop();
+        const previousTab = history[history.length - 1] || 'home';
+        _setActiveTab(previousTab);
+        return history;
+      });
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => goBack()
+    );
+    return () => backHandler.remove();
+  }, [tabHistory]);
+
   const [paysheetPeriod, setPaysheetPeriod] = useState('month'); // default to 'month'
   const [showPaysheetPeriodDropdown, setShowPaysheetPeriodDropdown] = useState(false);
   
@@ -324,6 +356,9 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
       } else {
         await fetchContractors();
       }
+    } else if (activeTab === 'profile') {
+      const res = await authAPI.getCurrentUser();
+      if (res.success && res.user) setProfileUser(res.user);
     }
     setRefreshing(false);
   };

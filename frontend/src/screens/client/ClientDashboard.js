@@ -11,7 +11,8 @@ import {
   RefreshControl,
   Image,
   Platform,
-  Modal
+  Modal,
+  BackHandler
 } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { clientAPI, authAPI, getBaseUrl } from '../../api/client';
@@ -22,6 +23,8 @@ import AppFooter from '../../components/AppFooter';
 import TimeInput from '../../components/TimeInput';
 import backScrollEmitter from '../../utils/backScrollEmitter';
 import { State, Country, City } from 'country-state-city';
+import * as Location from 'expo-location';
+import EmbeddedGoogleMap from '../../components/EmbeddedGoogleMap';
 
 // Pre-map countries for fast lookup
 const countryMap = {};
@@ -51,9 +54,40 @@ const CATEGORIES = [
 ];
 
 const ClientDashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('home'); // 'home', 'post', 'inbox'
+  const [activeTab, _setActiveTab] = useState('home'); // 'home', 'post', 'inbox'
+  const [tabHistory, setTabHistory] = useState(['home']);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const setActiveTab = (tab) => {
+    setTabHistory(prev => {
+      if (prev[prev.length - 1] === tab) return prev;
+      return [...prev, tab];
+    });
+    _setActiveTab(tab);
+  };
+
+  const goBack = () => {
+    if (tabHistory.length > 1) {
+      setTabHistory(prev => {
+        const history = [...prev];
+        history.pop();
+        const previousTab = history[history.length - 1] || 'home';
+        _setActiveTab(previousTab);
+        return history;
+      });
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => goBack()
+    );
+    return () => backHandler.remove();
+  }, [tabHistory]);
 
   // Home states
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -67,6 +101,8 @@ const ClientDashboard = ({ user, onLogout }) => {
   const [postDate, setPostDate] = useState('');
   const [postTime, setPostTime] = useState('');
   const [postDuration, setPostDuration] = useState('');
+  const [mapLat, setMapLat] = useState(40.7527);
+  const [mapLng, setMapLng] = useState(-73.9772);
   const [searchingPlace, setSearchingPlace] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [searchLocationSuggestions, setSearchLocationSuggestions] = useState([]);
@@ -152,6 +188,33 @@ const ClientDashboard = ({ user, onLogout }) => {
     return () => newSocket.disconnect();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (activeTab === 'postJob') {
+      (async () => {
+        try {
+          let { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') return;
+          let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setMapLat(loc.coords.latitude);
+          setMapLng(loc.coords.longitude);
+          
+          let reverseGeocode = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude
+          });
+          
+          if (reverseGeocode && reverseGeocode.length > 0) {
+            const addr = reverseGeocode[0];
+            const addressString = `${addr.street || addr.name || ''}, ${addr.city || addr.subregion || ''}, ${addr.region || ''}`.replace(/^[,\s]+|[,\s]+$/g, '');
+            setPostLocation(prev => prev || addressString);
+          }
+        } catch (e) {
+          console.log('Error getting location:', e);
+        }
+      })();
+    }
+  }, [activeTab]);
+
   // Calendar states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
@@ -178,6 +241,9 @@ const ClientDashboard = ({ user, onLogout }) => {
       } else if (activeTab === 'inbox') {
         const res = await clientAPI.getRequests();
         if (res.success) setRequests(res.requests);
+      } else if (activeTab === 'profile') {
+        const res = await authAPI.getCurrentUser();
+        if (res.success && res.user) setProfileUser(res.user);
       }
       setRefreshing(false);
     } catch (e) {
@@ -342,7 +408,9 @@ const ClientDashboard = ({ user, onLogout }) => {
       const country = countryMap[c.countryCode];
       const stateName = stateMap[`${c.countryCode}-${c.stateCode}`] || c.stateCode;
       return {
-        display_name: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`
+        display_name: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`,
+        lat: c.latitude,
+        lng: c.longitude
       };
     });
     setSearchSuggestions(mapped);
@@ -707,6 +775,10 @@ const ClientDashboard = ({ user, onLogout }) => {
                       style={styles.suggestionItem}
                       onPress={() => {
                         setPostLocation(item.display_name);
+                        if (item.lat && item.lng) {
+                          setMapLat(parseFloat(item.lat));
+                          setMapLng(parseFloat(item.lng));
+                        }
                         setSearchSuggestions([]);
                       }}
                     >
@@ -717,6 +789,26 @@ const ClientDashboard = ({ user, onLogout }) => {
                   ))}
                 </View>
               )}
+            </View>
+
+            <View style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden' }}>
+              <EmbeddedGoogleMap 
+                latitude={mapLat} 
+                longitude={mapLng} 
+                height={200}
+                onLocationSelect={async (lat, lng) => {
+                  setMapLat(lat);
+                  setMapLng(lng);
+                  try {
+                    let reverseGeocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+                    if (reverseGeocode && reverseGeocode.length > 0) {
+                      const addr = reverseGeocode[0];
+                      const addressString = `${addr.street || addr.name || ''}, ${addr.city || addr.subregion || ''}, ${addr.region || ''}`.replace(/^[,\s]+|[,\s]+$/g, '');
+                      setPostLocation(addressString);
+                    }
+                  } catch (e) {}
+                }}
+              />
             </View>
 
             <View style={styles.rowFields}>

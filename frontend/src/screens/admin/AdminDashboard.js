@@ -1,13 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, RefreshControl, StyleSheet, Alert, TouchableOpacity, Modal, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, StyleSheet, Alert, TouchableOpacity, Modal, ActivityIndicator, Image, BackHandler } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { adminAPI } from '../../api/client';
 import AppFooter from '../../components/AppFooter';
 import backScrollEmitter from '../../utils/backScrollEmitter';
 
 const AdminDashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('home'); // 'home', 'contractors', 'workers', 'history'
-  
+  const [activeTab, _setActiveTab] = useState('home'); // 'home', 'contractors', 'workers', 'history'
+  const [tabHistory, setTabHistory] = useState(['home']);
+
+  const setActiveTab = (tab) => {
+    setTabHistory(prev => {
+      if (prev[prev.length - 1] === tab) return prev;
+      return [...prev, tab];
+    });
+    _setActiveTab(tab);
+  };
+
+  const goBack = () => {
+    if (tabHistory.length > 1) {
+      setTabHistory(prev => {
+        const history = [...prev];
+        history.pop();
+        const previousTab = history[history.length - 1] || 'home';
+        _setActiveTab(previousTab);
+        return history;
+      });
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => goBack()
+    );
+    return () => backHandler.remove();
+  }, [tabHistory]);
   // Real database states
   const [contractors, setContractors] = useState([]);
   const [workers, setWorkers] = useState([]);
