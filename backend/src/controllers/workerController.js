@@ -176,7 +176,9 @@ exports.respondToAssignment = async (req, res) => {
       message:
         finalResponse === 'waitlisted'
           ? `${req.user.name} accepted but is on the waitlist (slots filled).`
-          : `${req.user.name} has ${finalResponse} your contract request.`,
+          : finalResponse === 'rejected'
+            ? `${req.user.name} has rejected your contract request. Please assign that job to another crew member.`
+            : `${req.user.name} has accepted your contract request.`,
       data: { contractId: contract._id, workerId: req.user._id, response: finalResponse },
       socketEvent: 'contractor_notification'
     });
@@ -491,7 +493,7 @@ exports.applyForFreelanceJob = async (req, res) => {
         status: 'active'
       });
 
-      const responseDeadline = new Date(Date.now() + 120 * 60 * 1000);
+      const responseDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
       await WorkerAssignment.create({
         contractId: contract._id,
         workerId: req.user.id,

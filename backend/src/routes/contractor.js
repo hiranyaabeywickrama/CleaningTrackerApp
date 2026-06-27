@@ -18,7 +18,8 @@ const {
   assignWorkerToContract,
   setRenewOption,
   renewPackage,
-  getSubscription
+  getSubscription,
+  handoverContract
 } = require('../controllers/contractorController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -44,5 +45,6 @@ router.post('/freelance', postFreelanceJob);
 router.get('/freelance', getFreelanceJobs);
 router.post('/freelance/:id/approve/:workerId', approveFreelanceWorker);
 router.post('/workers/:id/assign', assignWorkerToContract);
+router.put('/contracts/:id/handover', handoverContract);
 
 module.exports = router;

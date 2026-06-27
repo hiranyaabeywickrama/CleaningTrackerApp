@@ -1200,7 +1200,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
   const handleHandoverProject = async (workerId) => {
     if (!handoverContractId) {
-      Alert.alert('Required', 'Please select a project to handover');
+      Alert.alert('Required', 'Please select a project to assign');
       return;
     }
     setAssigningWorker(true);
@@ -1208,16 +1208,33 @@ const ContractorDashboard = ({ user, onLogout }) => {
       const res = await contractorAPI.assignWorker(workerId, handoverContractId);
       setAssigningWorker(false);
       if (res.success) {
-        Alert.alert('Project Handed Over! 🧼', `Crew assignment request successfully dispatched to the worker.`);
+        Alert.alert('Project Assigned! 🧼', `Crew assignment request successfully dispatched to the worker.`);
         setHandoverContractId('');
         fetchWorkerProfileData(workerId);
         loadInitialData();
       } else {
-        Alert.alert('Handover Failed', res.message || 'Error occurred');
+        Alert.alert('Assignment Failed', res.message || 'Error occurred');
       }
     } catch (e) {
       setAssigningWorker(false);
-      Alert.alert('Error', e.response?.data?.message || 'Server error handing over contract');
+      Alert.alert('Error', e.response?.data?.message || 'Server error assigning contract');
+    }
+  };
+
+  const handleRealHandoverProject = async (contractId) => {
+    try {
+      const res = await contractorAPI.handoverProject(contractId);
+      if (res.success) {
+        Alert.alert('Success', 'Project successfully handed over to the client!');
+        loadInitialData();
+        if (selectedRosterWorker) {
+          fetchWorkerProfileData(selectedRosterWorker._id);
+        }
+      } else {
+        Alert.alert('Failed', res.message || 'Error occurred');
+      }
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.message || 'Server error handing over project');
     }
   };
 
@@ -1650,6 +1667,12 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   <Text style={styles.miniProjectTitle}>🧹 {c.clientName}</Text>
                   <Text style={styles.miniProjectSub}>📍 Location: {c.location?.address}</Text>
                   <Text style={styles.miniProjectSub}>📅 Date: {new Date(c.schedule?.date).toLocaleDateString()}</Text>
+                  <TouchableOpacity
+                    style={[styles.handoverSubmitBtn, { marginTop: 8 }]}
+                    onPress={() => handleRealHandoverProject(c._id)}
+                  >
+                    <Text style={styles.handoverSubmitBtnText}>Hand Over Project</Text>
+                  </TouchableOpacity>
                 </View>
               ))
             )}
@@ -1671,11 +1694,11 @@ const ContractorDashboard = ({ user, onLogout }) => {
             )}
           </View>
 
-          {/* Hand Over a Project Section */}
+          {/* Assign a Project Section */}
           <View style={styles.profileSection}>
-            <Text style={styles.profileSectionTitle}>Hand over a project:</Text>
+            <Text style={styles.profileSectionTitle}>Assign a project:</Text>
             {eligibleContracts.length === 0 ? (
-              <Text style={styles.emptySectionText}>No eligible projects available to hand over.</Text>
+              <Text style={styles.emptySectionText}>No eligible projects available to assign.</Text>
             ) : (
               <View style={{ position: 'relative', zIndex: 30 }}>
                 <TouchableOpacity

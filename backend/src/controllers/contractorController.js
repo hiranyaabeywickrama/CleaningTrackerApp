@@ -175,8 +175,8 @@ exports.createContract = async (req, res) => {
       pricePerHour: parseFloat(pricePerHour) || 25
     });
 
-    // Create Worker Assignments with standard (2 hours = 120 mins) or urgent (10 mins) timers
-    const timerMinutes = !!isUrgent ? 5 : 120;
+    // Create Worker Assignments with standard (24 hours = 1 day) or urgent (5 mins) timers
+    const timerMinutes = !!isUrgent ? 5 : 24 * 60;
     const responseDeadline = new Date(Date.now() + timerMinutes * 60 * 1000); 
     const assignments = [];
 
@@ -243,14 +243,26 @@ exports.getContracts = async (req, res) => {
     const contractsWithAssignments = [];
     for (let contract of contracts) {
       // Auto-expire assignments where response deadline has passed and it is still pending
-      await WorkerAssignment.updateMany(
-        {
-          contractId: contract._id,
-          response: 'pending',
-          responseDeadline: { $lt: now }
-        },
-        { response: 'expired' }
-      );
+      const expiredAssignments = await WorkerAssignment.find({
+        contractId: contract._id,
+        response: 'pending',
+        responseDeadline: { $lt: now }
+      }).populate('workerId');
+
+      for (let exp of expiredAssignments) {
+        exp.response = 'expired';
+        await exp.save();
+        
+        const io = req.app.get('socketio');
+        await notifyUser(io, {
+          userId: contract.contractorId,
+          type: 'contract_expired',
+          title: 'Worker Response Timeout',
+          message: `Worker ${exp.workerId?.name || 'A crew member'} did not respond to the contract within 1 day. Please assign this job to another crew member.`,
+          data: { contractId: contract._id, workerId: exp.workerId?._id },
+          socketEvent: 'contractor_notification'
+        });
+      }
 
       const assignments = await WorkerAssignment.find({ contractId: contract._id })
         .populate('workerId', 'name email phoneNumber status');
@@ -622,7 +634,7 @@ exports.approveFreelanceWorker = async (req, res) => {
       status: 'active'
     });
 
-    const responseDeadline = new Date(Date.now() + 120 * 60 * 1000);
+    const responseDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await WorkerAssignment.create({
       contractId: contract._id,
       workerId,
@@ -790,7 +802,7 @@ exports.assignWorkerToContract = async (req, res) => {
       await contract.save();
     }
 
-    const responseDeadline = new Date(Date.now() + 120 * 60 * 1000);
+    const responseDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const assignment = await WorkerAssignment.create({
       contractId: contract._id,
       workerId,
@@ -891,6 +903,44 @@ exports.renewPackage = async (req, res) => {
       message: `Plan renewed for 30 days. $${chargedAmount} charged. Next renewal: ${summary.renewsOn.toLocaleDateString()}.`,
       subscription: summary,
       user
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Hand over a completed project to client
+ * @route   PUT /api/contractor/contracts/:id/handover
+ * @access  Private/Contractor
+ */
+exports.handoverContract = async (req, res) => {
+  try {
+    const contractId = req.params.id;
+    const contract = await Contract.findById(contractId);
+
+    if (!contract) {
+      return res.status(404).json({ success: false, message: 'Contract not found' });
+    }
+
+    if (contract.contractorId.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Not authorized to handover this project' });
+    }
+
+    contract.status = 'completed';
+    await contract.save();
+
+    // Optionally update all associated assignments/jobs
+    const WorkerAssignment = require('../models/WorkerAssignment');
+    await WorkerAssignment.updateMany(
+      { contractId: contract._id, response: 'accepted' },
+      { workerStatus: 'Completed' }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Project handed over successfully',
+      contract
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

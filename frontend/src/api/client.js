@@ -390,6 +390,10 @@ export const contractorAPI = {
   getSubscription: async () => {
     const res = await apiClient.get('/contractor/package/subscription');
     return res.data;
+  },
+  handoverProject: async (contractId) => {
+    const res = await apiClient.put(`/contractor/contracts/${contractId}/handover`);
+    return res.data;
   }
 };
 
