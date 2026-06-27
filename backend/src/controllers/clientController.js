@@ -118,6 +118,8 @@ exports.acceptOffer = async (req, res) => {
     // Create contract
     const contract = await Contract.create({
       contractorId: contractor._id,
+      clientId: req.user.id,
+      clientRequestId: request._id,
       clientName: req.user.name,
       location: {
         address: request.location,

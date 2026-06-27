@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const ContractSchema = new mongoose.Schema({
   contractorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  clientRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'ClientRequest' },
   clientName: { type: String, required: true },
   location: {
     address: { type: String, required: true },

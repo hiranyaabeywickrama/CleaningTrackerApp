@@ -1591,6 +1591,13 @@ const ContractorDashboard = ({ user, onLogout }) => {
       const stats = workerProfileStats || { totalJobsCount: 0, completedJobsCount: 0, totalHours: 0, totalPayout: 0, hourlyRate: 25 };
       const completedJobs = workerProfileJobs.filter(j => j.status === 'completed');
       
+      const isProjectCompletelyDone = (contract) => {
+        if (!contract.assignments || contract.assignments.length === 0) return false;
+        const acceptedAssignments = contract.assignments.filter(a => a.response === 'accepted');
+        if (acceptedAssignments.length === 0) return false;
+        return acceptedAssignments.every(a => a.workerStatus === 'Completed');
+      };
+      
       // Filter ongoing projects (active status) assigned to this worker
       const workerOngoingProjects = contracts.filter(c => {
         const isOngoing = c.status === 'active';
@@ -1667,12 +1674,19 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   <Text style={styles.miniProjectTitle}>🧹 {c.clientName}</Text>
                   <Text style={styles.miniProjectSub}>📍 Location: {c.location?.address}</Text>
                   <Text style={styles.miniProjectSub}>📅 Date: {new Date(c.schedule?.date).toLocaleDateString()}</Text>
-                  <TouchableOpacity
-                    style={[styles.handoverSubmitBtn, { marginTop: 8 }]}
-                    onPress={() => handleRealHandoverProject(c._id)}
-                  >
-                    <Text style={styles.handoverSubmitBtnText}>Hand Over Project</Text>
-                  </TouchableOpacity>
+                  
+                  {isProjectCompletelyDone(c) ? (
+                    <TouchableOpacity
+                      style={[styles.handoverSubmitBtn, { marginTop: 8 }]}
+                      onPress={() => handleRealHandoverProject(c._id)}
+                    >
+                      <Text style={styles.handoverSubmitBtnText}>Hand Over Project</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={{ marginTop: 8, fontStyle: 'italic', color: '#64748B', fontSize: 12 }}>
+                      Waiting for crew to finish work...
+                    </Text>
+                  )}
                 </View>
               ))
             )}

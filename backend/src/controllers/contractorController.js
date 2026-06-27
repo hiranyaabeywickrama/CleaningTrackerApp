@@ -937,6 +937,25 @@ exports.handoverContract = async (req, res) => {
       { workerStatus: 'Completed' }
     );
 
+    // Update ClientRequest and Notify Client if applicable
+    if (contract.clientRequestId) {
+      const ClientRequest = require('../models/ClientRequest');
+      await ClientRequest.findByIdAndUpdate(contract.clientRequestId, { status: 'completed' });
+    }
+
+    if (contract.clientId) {
+      const io = req.app.get('socketio');
+      const { notifyUser } = require('../services/notificationService');
+      await notifyUser(io, {
+        userId: contract.clientId,
+        type: 'project_completed',
+        title: 'Project Completed! 🎉',
+        message: 'Your project has been successfully completed and handed over by the contractor.',
+        socketEvent: 'client_notification',
+        data: { contractId: contract._id }
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Project handed over successfully',
