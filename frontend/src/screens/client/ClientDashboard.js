@@ -242,7 +242,7 @@ const ClientDashboard = ({ user, onLogout }) => {
         const res = await clientAPI.getRequests();
         if (res.success) setRequests(res.requests);
       } else if (activeTab === 'profile') {
-        const res = await authAPI.getCurrentUser();
+        const res = await authAPI.getProfile();
         if (res.success && res.user) setProfileUser(res.user);
       }
       setRefreshing(false);
