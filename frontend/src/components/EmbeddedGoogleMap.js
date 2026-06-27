@@ -65,7 +65,7 @@ const EmbeddedGoogleMap = ({ latitude, longitude, height = 250, style, onLocatio
         onLocationSelect(location.coords.latitude, location.coords.longitude);
       }
     } catch (error) {
-      console.warn('Error fetching live location:', error);
+      alert('Location unavailable. Please enable device location services.');
     } finally {
       setLoadingLocation(false);
     }

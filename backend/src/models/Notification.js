@@ -4,15 +4,6 @@ const NotificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   type: {
     type: String,
-    enum: [
-      'contract_request',
-      'contract_accepted',
-      'contract_rejected',
-      'contract_expired',
-      'contract_promoted',
-      'contract_active',
-      'system'
-    ],
     default: 'system'
   },
   title: { type: String, required: true },
