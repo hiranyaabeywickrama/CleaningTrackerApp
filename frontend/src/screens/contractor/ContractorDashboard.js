@@ -3441,7 +3441,8 @@ const ContractorDashboard = ({ user, onLogout }) => {
                         })()}
                       </View>
                     )}
-                  </View>                  <TouchableOpacity
+                  </View>
+                  <TouchableOpacity
                     style={[styles.dispatchBtn, loading && styles.dispatchBtnDisabled]}
                     onPress={handleCreateContract}
                     disabled={loading}
