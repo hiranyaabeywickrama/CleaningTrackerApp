@@ -125,21 +125,22 @@ const ContractorDashboard = ({ user, onLogout }) => {
   const [expandedAcceptedBidId, setExpandedAcceptedBidId] = useState(null);
 
   // ── Contract Form State ─────────────────────────────────────────────────────
-  const [clientName, setClientName] = useState(user?.companyName || user?.name || '');
-  const [clientPhone, setClientPhone] = useState(user?.phoneNumber || '');
+  const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
   const [clientCountryCode, setClientCountryCode] = useState('+94');
   const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState(NY_LAT.toString());
-  const [longitude, setLongitude] = useState(NY_LNG.toString());
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
   const [notes, setNotes] = useState('');
-  const [date, setDate] = useState(getTodayString());
-  const [startTime, setStartTime] = useState(getCurrentTime24());
-  const [durationMinutes, setDurationMinutes] = useState('120');
-  const [pricePerHour, setPricePerHour] = useState('25');
+  const [date, setDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState('');
+  const [pricePerHour, setPricePerHour] = useState('');
   
   // Premium contract custom state
   const [requiredWorkersCount, setRequiredWorkersCount] = useState(1);
   const [isUrgent, setIsUrgent] = useState(false);
+  const [profileLocSuggestions, setProfileLocSuggestions] = useState([]);
 
   // ── Search Place Autocomplete States ──
   const [searchQuery, setSearchQuery] = useState('');
@@ -931,22 +932,15 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
   // ── Submit Contract Dispatch ────────────────────────────────────────────────
   const handleCreateContract = async () => {
-    if (!clientName.trim() || !clientPhone.trim() || !address.trim()) {
-      Alert.alert('Required Fields', 'Please complete Contractor Name, Phone, and Address.');
+    if (!address.trim()) {
+      Alert.alert('Required Fields', 'Please complete the Address field.');
       return;
     }
 
-    const fullPhoneNumber = `${clientCountryCode}${clientPhone.trim().replace(/^0/, '')}`;
-    const cleanPhone = fullPhoneNumber.replace(/[\s\-().+]/g, '');
-    if (cleanPhone.length < 9 || cleanPhone.length > 15) {
-      Alert.alert('Invalid Phone Number', 'Enter a valid contractor phone number (9–15 digits)');
-      return;
-    }
-
-    if (selectedWorkers.length < 1) {
+    if (rosterWorkers.length < 1) {
       Alert.alert(
-        'No Crew Selected',
-        'Please select at least 1 available crew member to fulfill the requirements of this contract.'
+        'No Crew Available',
+        'You do not have any crew members rostered to broadcast this contract to.'
       );
       return;
     }
@@ -987,8 +981,8 @@ const ContractorDashboard = ({ user, onLogout }) => {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         packageId: selectedPackage._id,
-        workers: selectedWorkers.map(w => w._id),
-        requiredWorkersCount: selectedWorkers.length,
+        workers: rosterWorkers.filter(w => w.status !== 'busy').map(w => w._id),
+        requiredWorkersCount: parseInt(requiredWorkersCount) || 1,
         isUrgent: selectedPackage.name === 'Premium' ? isUrgent : false,
         date,
         startTime,
@@ -1009,13 +1003,16 @@ const ContractorDashboard = ({ user, onLogout }) => {
               text: 'Access Projects',
               onPress: () => {
                 // Reset form fields
-                setClientName(user?.companyName || user?.name || '');
-                setClientPhone(user?.phoneNumber || '');
+                setClientName('');
+                setClientPhone('');
                 setAddress('');
-                setLatitude(NY_LAT.toString());
-                setLongitude(NY_LNG.toString());
+                setLatitude('');
+                setLongitude('');
                 setNotes('');
-                setDate(getTodayString());
+                setDate('');
+                setStartTime('');
+                setDurationMinutes('');
+                setPricePerHour('');
                 setStartTime(getCurrentTime24());
                 setPricePerHour('25');
                 setSelectedWorkers([]);
@@ -1038,7 +1035,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
   const handleFormRefresh = async () => {
     setRefreshing(true);
-    setClientName(user?.companyName || user?.name || '');
+    setClientName('');
     setClientPhone(user?.phoneNumber || '');
     setAddress('');
     setLatitude(NY_LAT.toString());
@@ -1074,18 +1071,18 @@ const ContractorDashboard = ({ user, onLogout }) => {
   // --- Freelance Tab States ---
   const [freelanceCategory, setFreelanceCategory] = useState('Cleaning');
   const [freelanceLoc, setFreelanceLoc] = useState('');
-  const [freelanceHours, setFreelanceHours] = useState('4');
-  const [freelancePrice, setFreelancePrice] = useState('25');
-  const [freelanceDate, setFreelanceDate] = useState(getTodayString());
-  const [freelanceTime, setFreelanceTime] = useState(getCurrentTime24());
+  const [freelanceHours, setFreelanceHours] = useState('');
+  const [freelancePrice, setFreelancePrice] = useState('');
+  const [freelanceDate, setFreelanceDate] = useState('');
+  const [freelanceTime, setFreelanceTime] = useState('');
   const [freelanceDesc, setFreelanceDesc] = useState('');
   const [freelanceJobs, setFreelanceJobs] = useState([]);
   const [loadingFreelance, setLoadingFreelance] = useState(false);
   const [expandedFreelanceId, setExpandedFreelanceId] = useState(null);
 
   const [showFreelanceCategoryDropdown, setShowFreelanceCategoryDropdown] = useState(false);
-  const [freelanceLatitude, setFreelanceLatitude] = useState(NY_LAT.toString());
-  const [freelanceLongitude, setFreelanceLongitude] = useState(NY_LNG.toString());
+  const [freelanceLatitude, setFreelanceLatitude] = useState('');
+  const [freelanceLongitude, setFreelanceLongitude] = useState('');
   const [freelanceSearchQuery, setFreelanceSearchQuery] = useState('');
   const [freelanceSearchSuggestions, setFreelanceSearchSuggestions] = useState([]);
   const [freelanceSearchingPlace, setFreelanceSearchingPlace] = useState(false);
@@ -1355,6 +1352,8 @@ const ContractorDashboard = ({ user, onLogout }) => {
         navigateToTab('clientRequests');
       } else if (notif.type === 'contract_accepted') {
         navigateToTab('projects');
+      } else if (notif.type === 'freelance_applied' || notif.type === 'freelance_accepted') {
+        navigateToTab('freelance');
       }
     } catch (e) {
       console.warn('Failed to handle notification click:', e.message);
@@ -1378,6 +1377,27 @@ const ContractorDashboard = ({ user, onLogout }) => {
       Alert.alert('Error', error.response?.data?.message || 'Something went wrong');
     } finally {
       setReassigningWorker(false);
+    }
+  };
+
+  const handleProfileLocSearch = async (query) => {
+    setProfileLocations(query);
+    if (query.trim().length < 3) {
+      setProfileLocSuggestions([]);
+      return;
+    }
+    try {
+      const response = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=en`);
+      const data = await response.json();
+      if (data && data.features) {
+        const mapped = data.features.map(f => {
+          const props = f.properties || {};
+          return [props.name, props.city, props.state, props.country].filter(Boolean).join(', ');
+        });
+        setProfileLocSuggestions(mapped);
+      }
+    } catch (e) {
+      console.warn(e);
     }
   };
 
@@ -1449,13 +1469,37 @@ const ContractorDashboard = ({ user, onLogout }) => {
             icon="🏢"
           />
 
-          <CustomInput
-            label="Work Locations (comma-separated)"
-            value={profileLocations}
-            onChangeText={setProfileLocations}
-            placeholder="New York, Brooklyn, Queens"
-            icon="📍"
-          />
+          <View style={{ zIndex: 5 }}>
+            <CustomInput
+              label="Work Locations (comma-separated)"
+              value={profileLocations}
+              onChangeText={handleProfileLocSearch}
+              placeholder="New York, Brooklyn, Queens"
+              icon="📍"
+            />
+            {profileLocSuggestions.length > 0 && (
+              <View style={[styles.suggestionsBox, { top: -10, position: 'relative' }]}>
+                {profileLocSuggestions.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      // Append to existing, or replace? Let's just replace the last part
+                      const parts = profileLocations.split(',');
+                      parts.pop();
+                      const prefix = parts.length > 0 ? parts.join(',') + ', ' : '';
+                      setProfileLocations(prefix + item);
+                      setProfileLocSuggestions([]);
+                    }}
+                  >
+                    <Text style={styles.suggestionText} numberOfLines={1}>
+                      📍 {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
 
           <CustomInput
             label="Tags / Specialties (comma-separated)"
@@ -3250,29 +3294,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
 
                   {/* ── Form Fields ── */}
-                  <CustomInput
-                    label="Contractor Name"
-                    value={clientName}
-                    onChangeText={setClientName}
-                    placeholder="Grand Central Office Complex"
-                    icon="🏢"
-                    required
-                    editable={true}
-                  />
 
-                  <CustomInput
-                    label="Contractor Phone Number"
-                    value={clientPhone}
-                    onChangeText={setClientPhone}
-                    placeholder="77 123 4567"
-                    isPhoneInput={true}
-                    countryCode={clientCountryCode}
-                    onCountryCodeChange={setClientCountryCode}
-                    keyboardType="phone-pad"
-                    required
-                  />
-
-                  {/* Premium Places Autocomplete Search Bar (Easiest Method) */}
                   <View style={styles.searchPlaceContainer}>
                     <Text style={styles.fieldGroupLabel}>Search Address/Place (Easiest Method) 🔍</Text>
                     <TextInput
@@ -3383,7 +3405,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
                   {/* Crew Selection Section */}
                   <View style={{ marginTop: 15, marginBottom: 20 }}>
-                    <Text style={styles.fieldGroupLabel}>Select Crew Members <Text style={{ color: Colors.danger }}>*</Text></Text>
+                    <Text style={styles.fieldGroupLabel}>Crew Members Availability</Text>
                     {rosterWorkers.length === 0 ? (
                       <Text style={{ color: '#64748B', fontSize: 13, marginTop: 8 }}>
                         No crew members on your roster. Please add some first.
@@ -3406,27 +3428,21 @@ const ContractorDashboard = ({ user, onLogout }) => {
                           }
                           
                           return displayedWorkers.map(worker => {
-                            const isSelected = selectedWorkers.some(w => w._id === worker._id);
                             return (
-                              <TouchableOpacity
+                              <View
                                 key={worker._id}
                                 style={{
                                   flexDirection: 'row',
                                   alignItems: 'center',
                                   paddingVertical: 12,
                                   paddingHorizontal: 15,
-                                  backgroundColor: isSelected ? '#E0F2FE' : '#FFFFFF',
+                                  backgroundColor: '#FFFFFF',
                                   borderWidth: 1,
-                                  borderColor: isSelected ? Colors.primary : '#E2E8F0',
+                                  borderColor: '#E2E8F0',
                                   borderRadius: 8,
                                   marginBottom: 8,
                                 }}
-                                onPress={() => toggleSelectWorker(worker)}
-                                activeOpacity={0.7}
                               >
-                                <Text style={{ marginRight: 15, fontSize: 16 }}>
-                                  {isSelected ? '☑️' : '⬜'}
-                                </Text>
                                 <View style={{ flex: 1 }}>
                                   <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.secondary }}>
                                     {worker.name}
@@ -3435,7 +3451,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                                     {worker.status || 'Available'}
                                   </Text>
                                 </View>
-                              </TouchableOpacity>
+                              </View>
                             );
                           });
                         })()}

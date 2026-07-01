@@ -168,6 +168,10 @@ const ContractorOtpScreen = ({ onLoginSuccess, navigation }) => {
   };
 
   const handleVerifyOtp = async () => {
+    if (timer === 0) {
+      Alert.alert('Timeout ⚠️', 'Verification code has expired. Please request a new one.');
+      return;
+    }
     if (!otpCode || otpCode.length !== 6) {
       Alert.alert('Invalid Code', 'Please enter the 6-digit verification code.');
       return;
@@ -341,6 +345,7 @@ const ContractorOtpScreen = ({ onLoginSuccess, navigation }) => {
                 keyboardType="number-pad"
                 maxLength={6}
                 icon="🔐"
+                editable={timer > 0}
                 required
               />
 

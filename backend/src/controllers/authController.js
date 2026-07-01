@@ -125,6 +125,10 @@ exports.updateProfile = async (req, res) => {
       if (hourlyRate !== undefined && !isNaN(hourlyRate)) {
         user.hourlyRate = parseFloat(hourlyRate);
       }
+      if (state !== undefined) user.state = state.trim();
+      if (tags !== undefined) {
+        user.tags = Array.isArray(tags) ? tags : tags.split(',').map(s => s.trim()).filter(Boolean);
+      }
     }
 
     await user.save();

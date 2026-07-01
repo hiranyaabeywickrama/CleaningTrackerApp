@@ -92,7 +92,17 @@ const ClientDashboard = ({ user, onLogout }) => {
   // Home states
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [contractors, setContractors] = useState([]);
+  const [associatedContractors, setAssociatedContractors] = useState([]);
+  const [loadingAssociated, setLoadingAssociated] = useState(false);
   const [searchLocation, setSearchLocation] = useState('');
+  const [profileStateSuggestions, setProfileStateSuggestions] = useState([]);
+
+  // Rating states
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [selectedContractorToRate, setSelectedContractorToRate] = useState(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingReview, setRatingReview] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   // Post states
   const [postCategory, setPostCategory] = useState('Cleaning');
@@ -262,6 +272,8 @@ const ClientDashboard = ({ user, onLogout }) => {
       } else if (activeTab === 'inbox') {
         const res = await clientAPI.getRequests();
         if (res.success) setRequests(res.requests);
+      } else if (activeTab === 'contractors') {
+        await loadAssociatedContractors();
       } else if (activeTab === 'profile') {
         const res = await authAPI.getProfile();
         if (res.success && res.user) setProfileUser(res.user);
@@ -312,6 +324,77 @@ const ClientDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const renderContractorsTab = () => {
+    return (
+      <View style={{ paddingBottom: 30 }}>
+        <Text style={styles.sectionTitle}>🤝 Associated Contractors</Text>
+        <Text style={styles.sectionSubtitle}>Contractors you have worked with. Click a contractor to rate them.</Text>
+        
+        {loadingAssociated ? (
+          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 20 }} />
+        ) : associatedContractors.length === 0 ? (
+          <View style={[styles.emptyStateContainer, { marginTop: 20 }]}>
+            <Text style={styles.emptyStateIcon}>😕</Text>
+            <Text style={styles.emptyStateTitle}>No Associated Contractors</Text>
+            <Text style={styles.emptyStateSub}>You haven't worked with any contractors yet.</Text>
+          </View>
+        ) : (
+          <View style={{ marginTop: 15 }}>
+            {associatedContractors.map(c => (
+              <TouchableOpacity
+                key={c._id}
+                style={[styles.jobCard, { flexDirection: 'row', alignItems: 'center' }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setSelectedContractorToRate(c);
+                  setRatingValue(5);
+                  setRatingReview('');
+                  setRatingModalVisible(true);
+                }}
+              >
+                <View style={[styles.avatarPlaceholder, { width: 50, height: 50, borderRadius: 25, marginRight: 15 }]}>
+                  <Text style={{ fontSize: 24 }}>🏢</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.jobTitle, { fontSize: 16 }]}>{c.companyName || c.name}</Text>
+                  <Text style={styles.jobDetailText}>📞 {c.phoneNumber}</Text>
+                  <Text style={styles.jobDetailText}>⭐ {c.averageRating ? c.averageRating.toFixed(1) : 'No Ratings'}</Text>
+                </View>
+                <Text style={{ color: Colors.primary, fontWeight: 'bold' }}>Rate ➔</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const handleProfileStateSearch = (query) => {
+    setProfileState(query);
+    if (!query.trim()) {
+      setProfileStateSuggestions([]);
+      return;
+    }
+
+    const filtered = [];
+    const lowerQuery = query.toLowerCase().trim();
+    for (let i = 0; i < GLOBAL_CITIES.length; i++) {
+      if (GLOBAL_CITIES[i].name.toLowerCase().includes(lowerQuery)) {
+        filtered.push(GLOBAL_CITIES[i]);
+        if (filtered.length >= 10) break;
+      }
+    }
+
+    const mapped = filtered.map(c => {
+      const country = countryMap[c.countryCode];
+      const stateName = stateMap[`${c.countryCode}-${c.stateCode}`] || c.stateCode;
+      return {
+        display_name: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`
+      };
+    });
+    setProfileStateSuggestions(mapped);
+  };
+
   const renderProfileTab = () => {
     return (
       <View style={{ paddingBottom: 30 }}>
@@ -338,13 +421,33 @@ const ClientDashboard = ({ user, onLogout }) => {
             required
           />
 
-          <CustomInput
-            label="State / Region"
-            value={profileState}
-            onChangeText={setProfileState}
-            placeholder="New York"
-            icon="📍"
-          />
+          <View style={{ zIndex: 5 }}>
+            <CustomInput
+              label="State / Region / Location"
+              value={profileState}
+              onChangeText={handleProfileStateSearch}
+              placeholder="Search city or location..."
+              icon="📍"
+            />
+            {profileStateSuggestions.length > 0 && (
+              <View style={[styles.suggestionsBox, { top: -10, position: 'relative' }]}>
+                {profileStateSuggestions.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      setProfileState(item.display_name);
+                      setProfileStateSuggestions([]);
+                    }}
+                  >
+                    <Text style={styles.suggestionText} numberOfLines={1}>
+                      📍 {item.display_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
 
           <View style={{ marginTop: 15 }}>
             <CustomButton
@@ -391,6 +494,41 @@ const ClientDashboard = ({ user, onLogout }) => {
     const unsub = backScrollEmitter.subscribe(listener);
     return () => unsub();
   }, []);
+
+  const loadAssociatedContractors = async () => {
+    try {
+      setLoadingAssociated(true);
+      const res = await clientAPI.getAssociatedContractors();
+      if (res.success) {
+        setAssociatedContractors(res.contractors || []);
+      }
+    } catch (e) {
+      console.warn('Failed to load associated contractors:', e.message);
+    } finally {
+      setLoadingAssociated(false);
+    }
+  };
+
+  const handleRateContractor = async () => {
+    if (!selectedContractorToRate) return;
+    try {
+      setSubmittingRating(true);
+      const res = await clientAPI.rateContractor(selectedContractorToRate._id, ratingValue, ratingReview);
+      if (res.success) {
+        Alert.alert('Success 🎉', 'Rating submitted successfully');
+        setRatingModalVisible(false);
+        setRatingValue(5);
+        setRatingReview('');
+        loadAssociatedContractors(); // Refresh to get updated rating
+      } else {
+        Alert.alert('Error ⚠️', res.message || 'Failed to submit rating');
+      }
+    } catch (e) {
+      Alert.alert('Error ⚠️', 'Failed to submit rating');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
 
   const fetchContractors = async (catId) => {
     setLoading(true);
@@ -720,6 +858,7 @@ const ClientDashboard = ({ user, onLogout }) => {
                           <Text style={styles.contractorCompany}>{c.companyName || 'Freelance Contractor'}</Text>
                           <Text style={styles.contractorName}>👤 Contact: {c.name}</Text>
                           <Text style={styles.contractorLocations}>📍 Locations: {c.locations.join(', ') || 'N/A'}</Text>
+                          <Text style={styles.contractorLocations}>⭐ {c.averageRating ? c.averageRating.toFixed(1) : 'No Ratings'}</Text>
                         </View>
                         <View style={styles.priceBadge}>
                           <Text style={styles.priceBadgeText}>

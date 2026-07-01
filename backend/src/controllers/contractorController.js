@@ -522,10 +522,43 @@ exports.getWorkerRosterProfile = async (req, res) => {
       };
     }
 
-    const jobs = await Job.find(filter).sort('-startTime');
+    const WorkerAssignment = require('../models/WorkerAssignment');
+    const jobs = await Job.find(filter).lean();
+
+    const assignmentFilter = {
+      workerId: worker._id,
+      response: { $in: ['accepted', 'completed'] }
+    };
+    
+    const assignments = await WorkerAssignment.find(assignmentFilter).populate('contractId').lean();
+    
+    const formattedAssignments = assignments
+      .filter(a => a.contractId && (a.contractId.contractorId?.toString() === req.user.id.toString()))
+      .filter(a => {
+        if (!startDate || !endDate) return true;
+        const sDate = a.contractId.schedule?.date;
+        if (!sDate) return false;
+        const d = new Date(sDate);
+        return d >= new Date(startDate) && d <= new Date(endDate);
+      })
+      .map(a => {
+        const c = a.contractId;
+        return {
+          _id: a._id,
+          status: c.status,
+          customerName: c.clientName,
+          address: c.location?.address,
+          startTime: c.schedule?.date,
+          totalHoursWorked: a.actualWorkedMinutes ? parseFloat((a.actualWorkedMinutes / 60).toFixed(2)) : 
+                            (c.schedule?.durationMinutes ? parseFloat((c.schedule.durationMinutes / 60).toFixed(2)) : 0),
+          expectedHours: c.schedule?.durationMinutes ? c.schedule.durationMinutes / 60 : 2
+        };
+      });
+
+    const allProjects = [...jobs, ...formattedAssignments].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
 
     let totalHours = 0;
-    const completedJobs = jobs.filter(j => j.status === 'completed');
+    const completedJobs = allProjects.filter(j => j.status === 'completed');
     completedJobs.forEach(job => {
       totalHours += job.totalHoursWorked || 0;
     });
@@ -537,13 +570,13 @@ exports.getWorkerRosterProfile = async (req, res) => {
       success: true,
       worker,
       stats: {
-        totalJobsCount: jobs.length,
+        totalJobsCount: allProjects.length,
         completedJobsCount: completedJobs.length,
         totalHours,
         totalPayout,
         hourlyRate
       },
-      jobs
+      jobs: allProjects
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -590,6 +623,24 @@ exports.postFreelanceJob = async (req, res) => {
     });
 
     res.status(201).json({ success: true, freelanceJob });
+    
+    // Notify workers
+    const io = req.app.get('socketio');
+    if (io) {
+      const { notifyUser } = require('../services/notificationService');
+      const targetWorkers = actualTargetType === 'crew' 
+        ? await User.find({ role: 'worker', contractorId: req.user.id }).select('_id')
+        : await User.find({ role: 'worker' }).select('_id');
+        
+      for (const w of targetWorkers) {
+        await notifyUser(io, {
+          userId: w._id,
+          type: 'freelance_contract',
+          title: 'New Freelance Opportunity!',
+          message: `A new ${category} freelance job is available at ${location}.`,
+        });
+      }
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

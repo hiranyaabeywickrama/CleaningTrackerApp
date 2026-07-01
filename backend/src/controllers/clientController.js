@@ -193,3 +193,83 @@ exports.getContractors = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Rate a contractor
+ * @route   POST /api/client/contractors/:id/rate
+ * @access  Private/Client
+ */
+exports.rateContractor = async (req, res) => {
+  try {
+    const contractor = await User.findById(req.params.id);
+    if (!contractor || contractor.role !== 'contractor') {
+      return res.status(404).json({ success: false, message: 'Contractor not found' });
+    }
+
+    const { rating, review } = req.body;
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+    }
+
+    const existingRatingIndex = contractor.ratings.findIndex(r => r.clientId.toString() === req.user.id.toString());
+    if (existingRatingIndex !== -1) {
+      contractor.ratings[existingRatingIndex].rating = rating;
+      contractor.ratings[existingRatingIndex].review = review;
+      contractor.ratings[existingRatingIndex].date = Date.now();
+    } else {
+      contractor.ratings.push({
+        clientId: req.user.id,
+        rating,
+        review
+      });
+    }
+
+    const totalRatings = contractor.ratings.reduce((sum, r) => sum + r.rating, 0);
+    contractor.averageRating = totalRatings / contractor.ratings.length;
+
+    await contractor.save();
+
+    res.status(200).json({ success: true, message: 'Rating submitted successfully', averageRating: contractor.averageRating });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Get associated contractors (contractors who have worked for this client)
+ * @route   GET /api/client/associated-contractors
+ * @access  Private/Client
+ */
+exports.getAssociatedContractors = async (req, res) => {
+  try {
+    const Contract = require('../models/Contract');
+    // Find all contracts for this client that were accepted or completed
+    const contracts = await Contract.find({
+      clientPhone: req.user.phoneNumber, // Assuming client matches by phone number, or maybe there's a clientId?
+      // Wait, clientRequest doesn't store clientId in Contract directly except clientPhone or clientName.
+      // But we can check ClientRequest offers accepted!
+    });
+    
+    // Better way: Find ClientRequests by this user that are assigned
+    const ClientRequest = require('../models/ClientRequest');
+    const requests = await ClientRequest.find({
+      client: req.user.id,
+      status: 'assigned'
+    }).populate('offers.contractor', 'name companyName email phoneNumber tags locations averageRating ratings');
+
+    const contractorsSet = new Map();
+    requests.forEach(req => {
+      req.offers.forEach(offer => {
+        if (offer.status === 'accepted' && offer.contractor) {
+          contractorsSet.set(offer.contractor._id.toString(), offer.contractor);
+        }
+      });
+    });
+
+    const associatedContractors = Array.from(contractorsSet.values());
+
+    res.status(200).json({ success: true, count: associatedContractors.length, contractors: associatedContractors });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

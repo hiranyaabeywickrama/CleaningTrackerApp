@@ -473,6 +473,14 @@ export const clientAPI = {
   getContractors: async (category = '', location = '') => {
     const res = await apiClient.get(`/client/contractors?category=${category}&location=${location}`);
     return res.data;
+  },
+  getAssociatedContractors: async () => {
+    const res = await apiClient.get('/client/associated-contractors');
+    return res.data;
+  },
+  rateContractor: async (contractorId, rating, review) => {
+    const res = await apiClient.post(`/client/contractors/${contractorId}/rate`, { rating, review });
+    return res.data;
   }
 };
 

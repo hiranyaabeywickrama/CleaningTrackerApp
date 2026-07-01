@@ -22,12 +22,12 @@ import CustomButton from '../components/CustomButton';
 import CustomInput from '../components/CustomInput';
 
 // ── OTP input component (6 individual boxes) ──────────────────────────────────
-const OtpBoxes = ({ value, onChange }) => {
+const OtpBoxes = ({ value, onChange, disabled }) => {
   const inputRef = useRef(null);
   const digits = value.split('');
 
   return (
-    <TouchableOpacity activeOpacity={1} onPress={() => inputRef.current?.focus()} style={styles.otpWrapper}>
+    <TouchableOpacity activeOpacity={1} onPress={() => !disabled && inputRef.current?.focus()} style={styles.otpWrapper}>
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <View
           key={i}
@@ -43,11 +43,12 @@ const OtpBoxes = ({ value, onChange }) => {
       <TextInput
         ref={inputRef}
         value={value}
-        onChangeText={(v) => onChange(v.replace(/\D/g, '').slice(0, 6))}
+        onChangeText={(v) => { if (!disabled) onChange(v.replace(/\D/g, '').slice(0, 6)); }}
         keyboardType="number-pad"
         maxLength={6}
         style={styles.otpHiddenInput}
         caretHidden
+        editable={!disabled}
       />
     </TouchableOpacity>
   );
@@ -274,6 +275,10 @@ const LoginScreen = ({ onLoginSuccess, navigation, route }) => {
 
   // ── OTP: step 2 — verify code ──────────────────────────────────────────────
   const handleVerifyOtp = async () => {
+    if (timer === 0) {
+      Alert.alert('Timeout ⚠️', 'Verification code has expired. Please request a new one.');
+      return;
+    }
     if (!otpCode || otpCode.length !== 6) {
       Alert.alert('Invalid Code', 'Please enter the 6-digit code from your email.');
       return;
@@ -470,7 +475,7 @@ const LoginScreen = ({ onLoginSuccess, navigation, route }) => {
                 {/* 6-box OTP input */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>Verification Code <Text style={styles.required}>*</Text></Text>
-                  <OtpBoxes value={otpCode} onChange={setOtpCode} />
+                  <OtpBoxes value={otpCode} onChange={setOtpCode} disabled={timer === 0} />
                 </View>
 
                 {/* Timer */}

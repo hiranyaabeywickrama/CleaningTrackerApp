@@ -562,6 +562,17 @@ exports.applyForFreelanceJob = async (req, res) => {
         status: 'pending'
       });
 
+      const io = req.app.get('socketio');
+      if (io) {
+        const { notifyUser } = require('../services/notificationService');
+        await notifyUser(io, {
+          userId: freelanceJob.contractor,
+          type: 'freelance_accepted',
+          title: 'Freelance Job Accepted!',
+          message: `${req.user.name} has accepted the ${freelanceJob.category} freelance job.`
+        });
+      }
+
       return res.status(200).json({ success: true, message: 'Successfully accepted the crew freelance job!', freelanceJob, contract });
     }
 
@@ -572,6 +583,17 @@ exports.applyForFreelanceJob = async (req, res) => {
 
     freelanceJob.applicants.push(req.user.id);
     await freelanceJob.save();
+
+    const io = req.app.get('socketio');
+    if (io) {
+      const { notifyUser } = require('../services/notificationService');
+      await notifyUser(io, {
+        userId: freelanceJob.contractor,
+        type: 'freelance_applied',
+        title: 'New Freelance Application',
+        message: `${req.user.name} has applied for your ${freelanceJob.category} freelance job.`
+      });
+    }
 
     res.status(200).json({ success: true, message: 'Successfully applied for the freelance job!', freelanceJob });
   } catch (error) {

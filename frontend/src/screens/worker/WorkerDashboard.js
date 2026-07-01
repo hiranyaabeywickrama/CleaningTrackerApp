@@ -81,6 +81,8 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
   const [profileName, setProfileName] = useState(user?.name || '');
   const [profilePhone, setProfilePhone] = useState(user?.phoneNumber || '');
   const [profileHourlyRate, setProfileHourlyRate] = useState(user?.hourlyRate !== undefined ? String(user.hourlyRate) : '');
+  const [profileState, setProfileState] = useState(user?.state || '');
+  const [profileStateSuggestions, setProfileStateSuggestions] = useState([]);
   const [updatingProfile, setUpdatingProfile] = useState(false);
 
   // --- Notifications States ---
@@ -219,6 +221,8 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
           }
         }
         setActiveTab('home');
+      } else if (notif.type === 'freelance_contract') {
+        navigateToTab('freelance');
       }
     } catch (e) {
       console.warn('Failed to handle notification click:', e.message);
@@ -249,7 +253,8 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
       const res = await authAPI.updateProfile({
         name: profileName,
         phoneNumber: profilePhone,
-        hourlyRate: parsedRate
+        hourlyRate: parsedRate,
+        state: profileState
       });
       if (res.success) {
         Alert.alert('Success 🎉', 'Profile updated successfully');
@@ -264,6 +269,32 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
     } finally {
       setUpdatingProfile(false);
     }
+  };
+
+  const handleProfileStateSearch = (query) => {
+    setProfileState(query);
+    if (!query.trim()) {
+      setProfileStateSuggestions([]);
+      return;
+    }
+
+    const filtered = [];
+    const lowerQuery = query.toLowerCase().trim();
+    for (let i = 0; i < GLOBAL_CITIES.length; i++) {
+      if (GLOBAL_CITIES[i].name.toLowerCase().includes(lowerQuery)) {
+        filtered.push(GLOBAL_CITIES[i]);
+        if (filtered.length >= 10) break;
+      }
+    }
+
+    const mapped = filtered.map(c => {
+      const country = countryMap[c.countryCode];
+      const stateName = stateMap[`${c.countryCode}-${c.stateCode}`] || c.stateCode;
+      return {
+        display_name: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`
+      };
+    });
+    setProfileStateSuggestions(mapped);
   };
 
   const renderProfileTab = () => {
@@ -301,6 +332,34 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
             keyboardType="numeric"
             required
           />
+
+          <View style={{ zIndex: 5 }}>
+            <CustomInput
+              label="State / Region / Location"
+              value={profileState}
+              onChangeText={handleProfileStateSearch}
+              placeholder="Search city or location..."
+              icon="📍"
+            />
+            {profileStateSuggestions.length > 0 && (
+              <View style={[styles.suggestionsBox, { top: -10, position: 'relative' }]}>
+                {profileStateSuggestions.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      setProfileState(item.display_name);
+                      setProfileStateSuggestions([]);
+                    }}
+                  >
+                    <Text style={styles.suggestionText} numberOfLines={1}>
+                      📍 {item.display_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
 
           {profileUser?.workerIdNumber ? (
             <CustomInput
@@ -740,8 +799,8 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                 <View style={styles.divider} />
 
                 {/* 3. Projects covered & Automated Paysheet */}
-                <View style={{ zIndex: 10 }}>
-                  <Text style={[styles.sectionTitle, { fontSize: 14, marginBottom: 4 }]}>📊 Automated Paysheet</Text>
+                <View style={{ zIndex: 10, marginTop: 15 }}>
+                  <Text style={[styles.sectionTitle, { fontSize: 18, fontWeight: '800', marginBottom: 6, color: Colors.primary }]}>📊 Covered Projects & Automated Paysheet</Text>
                   <Text style={styles.automatedLabel}>⚠️ Payouts are computed automatically based on verified clock-in durations and GPS logs.</Text>
                   
                   {/* Period Dropdown */}
