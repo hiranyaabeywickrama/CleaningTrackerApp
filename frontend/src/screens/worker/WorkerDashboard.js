@@ -207,6 +207,17 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
       setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
       setShowNotificationsModal(false);
       if (notif.type === 'contract_request') {
+        const assignmentId = notif.data?.assignmentId;
+        if (assignmentId) {
+          const assign = assignments.find(a => a._id === assignmentId);
+          if (assign && assign.contractId && assign.contractId.contractorId) {
+            const contractorId = assign.contractId.contractorId._id || assign.contractId.contractorId;
+            const contractorObj = contractors.find(c => c._id.toString() === contractorId.toString());
+            if (contractorObj) {
+              setSelectedContractor(contractorObj);
+            }
+          }
+        }
         setActiveTab('home');
       }
     } catch (e) {
@@ -830,36 +841,6 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
             ) : (
               // Main Home View
               <View>
-                {/* Shift Control Box */}
-                <View style={[styles.shiftCard, { borderColor: attendance ? '#A7F3D0' : '#FECACA', marginBottom: 16 }]}>
-                  <View style={styles.shiftText}>
-                    <View style={styles.statusDotRow}>
-                      <View style={[styles.beaconDot, { backgroundColor: attendance ? Colors.success : Colors.danger }]} />
-                      <Text style={styles.shiftLabel}>
-                        Shift Status: {attendance ? 'ONLINE & ACTIVE' : 'OFFLINE'}
-                      </Text>
-                    </View>
-                    <Text style={styles.shiftSub}>
-                      {attendance ? 'Your real-time GPS coordinates are logging.' : 'Clock in to start receiving jobs.'}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[
-                      styles.shiftBtn, 
-                      { 
-                        backgroundColor: attendance ? 'rgba(239, 68, 68, 0.08)' : Colors.primary,
-                        borderColor: attendance ? 'rgba(239, 68, 68, 0.2)' : Colors.primary
-                      }
-                    ]}
-                    onPress={handleClockInOut}
-                    activeOpacity={0.8}
-                    disabled={loadingShift}
-                  >
-                    <Text style={{ color: attendance ? Colors.danger : Colors.white, fontSize: 11, fontWeight: '900' }}>
-                      {loadingShift ? '...' : attendance ? 'Clock Out' : 'Clock In'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
 
                 {/* Associated Contractors List */}
                 <View style={styles.scheduleCard}>
