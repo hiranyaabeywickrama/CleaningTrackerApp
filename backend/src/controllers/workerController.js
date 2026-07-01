@@ -382,7 +382,37 @@ exports.endAssignmentJob = async (req, res) => {
     });
 
     if (pendingActiveCrewCount === 0) {
-      await Contract.findByIdAndUpdate(contractId, { status: 'completed' });
+      const updatedContract = await Contract.findByIdAndUpdate(contractId, { status: 'completed' }, { new: true }).populate('contractorId');
+      
+      const io = req.app.get('socketio');
+      if (io) {
+        const { notifyUser } = require('../services/notificationService');
+        
+        // Notify Contractor
+        if (updatedContract && updatedContract.contractorId) {
+          await notifyUser(io, {
+            userId: updatedContract.contractorId._id,
+            type: 'contract_completed',
+            title: 'Contract Completed',
+            message: `The cleaning contract at ${updatedContract.location?.address} has been completed by the crew.`,
+          });
+        }
+        
+        // Notify Client if applicable
+        if (updatedContract && updatedContract.clientRequestId) {
+          const ClientRequest = require('../models/ClientRequest');
+          const clientReq = await ClientRequest.findByIdAndUpdate(updatedContract.clientRequestId, { status: 'completed' }, { new: true }).populate('clientId');
+          
+          if (clientReq && clientReq.clientId) {
+            await notifyUser(io, {
+              userId: clientReq.clientId._id,
+              type: 'contract_completed',
+              title: 'Service Completed',
+              message: `Your requested cleaning service at ${clientReq.location?.address} has been completed.`
+            });
+          }
+        }
+      }
     }
 
     res.status(200).json({
@@ -590,13 +620,37 @@ exports.getContractorProjectsForWorker = async (req, res) => {
   try {
     const contractorId = req.params.id;
     const Job = require('../models/Job');
+    const WorkerAssignment = require('../models/WorkerAssignment');
 
     const jobs = await Job.find({
       assignedWorker: req.user.id,
       contractor: contractorId
-    }).sort('-startTime');
+    }).lean();
 
-    res.status(200).json({ success: true, count: jobs.length, jobs });
+    const assignments = await WorkerAssignment.find({
+      workerId: req.user.id,
+      response: { $in: ['accepted', 'completed'] }
+    }).populate('contractId').lean();
+
+    const formattedAssignments = assignments
+      .filter(a => a.contractId && (a.contractId.contractorId?.toString() === contractorId.toString()))
+      .map(a => {
+        const c = a.contractId;
+        return {
+          _id: a._id,
+          status: c.status,
+          customerName: c.clientName,
+          address: c.location?.address,
+          startTime: c.schedule?.date,
+          totalHoursWorked: a.actualWorkedMinutes ? parseFloat((a.actualWorkedMinutes / 60).toFixed(2)) : 
+                            (c.schedule?.durationMinutes ? parseFloat((c.schedule.durationMinutes / 60).toFixed(2)) : 0),
+          expectedHours: c.schedule?.durationMinutes ? c.schedule.durationMinutes / 60 : 2
+        };
+      });
+
+    const allProjects = [...jobs, ...formattedAssignments].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+
+    res.status(200).json({ success: true, count: allProjects.length, jobs: allProjects });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
