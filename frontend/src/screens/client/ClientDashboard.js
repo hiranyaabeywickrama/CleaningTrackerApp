@@ -1170,7 +1170,7 @@ const ClientDashboard = ({ user, onLogout }) => {
           hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
           pointerEvents="auto"
         >
-          <Text style={[styles.tabIcon, activeTab === 'contractors' && styles.tabIconActive]}>??</Text>
+          <Text style={[styles.tabIcon, activeTab === 'contractors' && styles.tabIconActive]}>👷</Text>
           <Text style={[styles.tabLabel, activeTab === 'contractors' && styles.tabLabelActive]}>Contractors</Text>
         </TouchableOpacity>
 

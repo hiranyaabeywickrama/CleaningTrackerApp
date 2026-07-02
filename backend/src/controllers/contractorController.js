@@ -547,6 +547,7 @@ exports.getWorkerRosterProfile = async (req, res) => {
           _id: a._id,
           contractId: c._id,
           status: c.status,
+          workerStatus: a.workerStatus,
           customerName: c.clientName,
           address: c.location?.address,
           startTime: c.schedule?.date,
@@ -561,7 +562,7 @@ exports.getWorkerRosterProfile = async (req, res) => {
     const allProjects = [...filteredJobs, ...formattedAssignments].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
 
     let totalHours = 0;
-    const completedJobs = allProjects.filter(j => j.status === 'completed');
+    const completedJobs = allProjects.filter(j => j.status === 'completed' || j.workerStatus === 'Completed');
     completedJobs.forEach(job => {
       totalHours += job.totalHoursWorked || 0;
     });
@@ -1049,9 +1050,10 @@ exports.handoverContract = async (req, res) => {
       await ClientRequest.findByIdAndUpdate(contract.clientRequestId, { status: 'completed' });
     }
 
+    const io = req.app.get('socketio');
+    const { notifyUser } = require('../services/notificationService');
+
     if (contract.clientId) {
-      const io = req.app.get('socketio');
-      const { notifyUser } = require('../services/notificationService');
       await notifyUser(io, {
         userId: contract.clientId,
         type: 'project_completed',
@@ -1061,6 +1063,16 @@ exports.handoverContract = async (req, res) => {
         data: { contractId: contract._id }
       });
     }
+
+    // Notify Contractor
+    await notifyUser(io, {
+      userId: req.user.id,
+      type: 'project_completed',
+      title: 'Project Handed Over 🎉',
+      message: 'You have successfully completed and handed over the project.',
+      socketEvent: 'contractor_notification',
+      data: { contractId: contract._id }
+    });
 
     res.status(200).json({
       success: true,
@@ -1148,3 +1160,4 @@ exports.reassignWorker = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
