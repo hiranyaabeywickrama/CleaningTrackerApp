@@ -1670,7 +1670,34 @@ const ContractorDashboard = ({ user, onLogout }) => {
     }
   }, [activeTab]);
 
+
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case 'completed':
+        return { label: 'Completed', color: '#10B981', bgColor: '#D1FAE5' };
+      case 'started':
+        return { label: 'In Progress', color: '#3B82F6', bgColor: '#DBEAFE' };
+      case 'pending':
+      default:
+        return { label: 'Pending', color: '#64748B', bgColor: '#F1F5F9' };
+    }
+  };
+
+  const formatJobTimeRange = (startTime, expectedHours = 2) => {
+    if (!startTime) return '9:00 AM - 11:00 AM';
+    
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + expectedHours * 3600 * 1000);
+    
+    const formatTime = (date) => {
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    };
+
+    return ${formatTime(start)} - ;
+  };
+
   // Tab 4: Roster rendering helper
+
   const renderRosterTab = () => {
     const currentPkgName = packages.find(p => p._id === (profileUser?.packageId?._id || profileUser?.packageId))?.name || subscription?.packageName || 'Basic';
     const limit = currentPkgName === 'Premium' ? 'Unlimited' : 5;
@@ -1752,22 +1779,35 @@ const ContractorDashboard = ({ user, onLogout }) => {
           </TouchableOpacity>
 
           {/* Ongoing Projects Section */}
-          <View style={styles.profileSection}>
-            <Text style={styles.profileSectionTitle}>Ongoing projects:</Text>
+          <View style={[styles.profileSection, { marginBottom: 20 }]}>
+            <Text style={[styles.profileSectionTitle, { fontSize: 14, marginBottom: 8 }]}>? Ongoing projects ({workerOngoingProjects.length}):</Text>
             {workerOngoingProjects.length === 0 ? (
-              <Text style={styles.emptySectionText}>No ongoing projects assigned.</Text>
+              <Text style={{ color: '#64748B', fontSize: 12, paddingLeft: 8 }}>No ongoing projects assigned.</Text>
             ) : (
-              workerOngoingProjects.map(c => (
-                <View key={c._id} style={styles.miniProjectCard}>
-                  <Text style={styles.miniProjectTitle}>🧹 {c.clientName}</Text>
-                  <Text style={styles.miniProjectSub}>📍 Location: {c.location?.address}</Text>
-                  <Text style={styles.miniProjectSub}>📅 Date: {new Date(c.schedule?.date).toLocaleDateString()}</Text>
-                  
-                  <Text style={{ marginTop: 8, fontStyle: 'italic', color: '#64748B', fontSize: 12 }}>
-                    Waiting for crew to finish work...
-                  </Text>
-                </View>
-              ))
+              workerOngoingProjects.map(c => {
+                const status = getStatusConfig(c.status);
+                return (
+                  <View key={c._id} style={styles.jobItemRow}>
+                    <View style={styles.jobItemHeader}>
+                      <View style={styles.addressCol}>
+                        <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 13, marginBottom: 2 }} numberOfLines={1}>
+                          {c.clientName || 'Private Customer'}
+                        </Text>
+                        <Text style={styles.addressText} numberOfLines={1}>?? {c.location?.address}</Text>
+                        <Text style={styles.timeRangeText}>
+                          ?? {new Date(c.schedule?.date).toLocaleDateString()}  ? {formatJobTimeRange(c.schedule?.date, c.schedule?.durationMinutes ? c.schedule.durationMinutes/60 : 2)}
+                        </Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: status.bgColor }]}>
+                        <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
+                      </View>
+                    </View>
+                    <Text style={{ marginTop: 2, fontStyle: 'italic', color: '#64748B', fontSize: 12 }}>
+                      Waiting for crew to finish work...
+                    </Text>
+                  </View>
+                );
+              })
             )}
           </View>
 
@@ -1904,14 +1944,23 @@ const ContractorDashboard = ({ user, onLogout }) => {
                     const payout = parseFloat((hours * stats.hourlyRate).toFixed(2));
                     return (
                       <View key={job._id} style={styles.tableBodyRow}>
-                        <Text style={[styles.tableBodyCell, { width: '25%' }]} numberOfLines={1}>{job.customerName}</Text>
+                        <View style={[styles.tableBodyCell, { width: '25%', flexDirection: 'column' }]}>
+                          <Text numberOfLines={1} style={{ fontSize: 13, color: '#1E293B' }}>
+                            {job.customerName && job.customerName.startsWith('Freelance Job:') ? job.customerName.replace('Freelance Job: ', '') : job.customerName}
+                          </Text>
+                          {job.customerName && job.customerName.startsWith('Freelance Job:') && (
+                            <Text style={{ fontSize: 10, color: '#3B82F6', fontWeight: 'bold', marginTop: 2 }}>
+                              [Freelance Contract]
+                            </Text>
+                          )}
+                        </View>
                         <Text style={[styles.tableBodyCell, { width: '25%' }]} numberOfLines={1}>{job.address}</Text>
                         <Text style={[styles.tableBodyCell, { width: '20%' }]} numberOfLines={1}>
                           {new Date(job.startTime).toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'})}
                         </Text>
                         <Text style={[styles.tableBodyCell, { width: '15%', textAlign: 'center' }]}>{hours}h</Text>
                         <Text style={[styles.tableBodyCell, { width: '15%', textAlign: 'right', fontWeight: '800', color: '#059669' }]}>
-                          ${payout}
+                          
                         </Text>
                       </View>
                     );
@@ -6091,6 +6140,46 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     padding: 16,
     marginBottom: 16
+  },
+
+  jobItemRow: {
+    marginBottom: 14,
+    borderBottomWidth: 1.2,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 14
+  },
+  jobItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12
+  },
+  addressCol: {
+    flex: 1,
+    marginRight: 8
+  },
+  addressText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#1E293B',
+    marginBottom: 3
+  },
+  timeRangeText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: '600'
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  statusBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.2
   },
   profileSectionTitle: {
     fontSize: 13.5,
