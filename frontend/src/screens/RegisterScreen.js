@@ -134,11 +134,11 @@ const RegisterScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (selectedRole === 'worker') {
       setIsAutoDetectingLocation(true);
-      fetch('https://ipapi.co/json/')
+      fetch('https://ipwho.is/')
         .then(res => res.json())
         .then(data => {
-          if (data.city && data.country_name) {
-            const locStr = `${data.city}, ${data.country_name}`;
+          if (data.success && data.city && data.country) {
+            const locStr = `${data.city}, ${data.country}`;
             setStateSearchInput(locStr);
             setSelectedState(locStr);
           }
