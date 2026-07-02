@@ -129,6 +129,24 @@ const RegisterScreen = ({ navigation, route }) => {
   const latestStateQuery = useRef('');
   const latestLocationQuery = useRef('');
 
+  const [isAutoDetectingLocation, setIsAutoDetectingLocation] = useState(false);
+
+  useEffect(() => {
+    if (selectedRole === 'worker') {
+      setIsAutoDetectingLocation(true);
+      fetch('https://ipapi.co/json/')
+        .then(res => res.json())
+        .then(data => {
+          if (data.city && data.country_name) {
+            const locStr = `, `;
+            setStateSearchInput(locStr);
+            setSelectedState(locStr);
+          }
+        })
+        .catch(err => console.log('Location detection failed', err))
+        .finally(() => setIsAutoDetectingLocation(false));
+    }
+  }, [selectedRole]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [errors, setErrors] = useState({});
@@ -652,11 +670,13 @@ const RegisterScreen = ({ navigation, route }) => {
                     {GLOBAL_STATE_OPTIONS.find(st => st.displayName === selectedState)?.countryFlag || '🌍'}
                   </Text>
                   <TextInput
-                    style={styles.locationInput}
-                    value={stateSearchInput}
-                    placeholder="Select or type your state"
+                    style={[styles.locationInput, selectedRole === 'worker' && { backgroundColor: '#F8FAFC', color: '#64748B', fontWeight: '800' }]}
+                    value={isAutoDetectingLocation ? 'Auto-detecting your location...' : stateSearchInput}
+                    editable={selectedRole !== 'worker'}
+                    placeholder={selectedRole === 'worker' ? "Auto-detecting..." : "Select or type your state"}
                     placeholderTextColor="#94A3B8"
                     onChangeText={(val) => {
+                      if (selectedRole === 'worker') return;
                       setStateSearchInput(val);
                       setSelectedState(''); // clear selected until they select a valid option
                       setErrors((e) => ({ ...e, state: '' }));
@@ -674,6 +694,7 @@ const RegisterScreen = ({ navigation, route }) => {
                       }
                     }}
                     onFocus={() => {
+                      if (selectedRole === 'worker') return;
                       setShowStateDropdown(true);
                       setShowCategoryDropdown(false);
                       setShowLocationSuggestions(false);
@@ -1176,4 +1197,5 @@ const styles = StyleSheet.create({
 });
 
 export default RegisterScreen;
+
 
