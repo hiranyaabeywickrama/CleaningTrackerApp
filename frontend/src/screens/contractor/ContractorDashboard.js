@@ -1693,7 +1693,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
       return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     };
 
-    return ${formatTime(start)} - ;
+    return `${formatTime(start)} - ${formatTime(end)}`;
   };
 
   // Tab 4: Roster rendering helper

@@ -138,7 +138,7 @@ const RegisterScreen = ({ navigation, route }) => {
         .then(res => res.json())
         .then(data => {
           if (data.city && data.country_name) {
-            const locStr = `, `;
+            const locStr = `${data.city}, ${data.country_name}`;
             setStateSearchInput(locStr);
             setSelectedState(locStr);
           }
