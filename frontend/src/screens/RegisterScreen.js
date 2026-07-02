@@ -806,6 +806,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.03)', zIndex: 0 // Green soft glow
   },
   scrollContainer: {
+    paddingBottom: 120,
     flexGrow: 1, justifyContent: 'center', padding: 20, zIndex: 1
   },
   backLink: {
@@ -1175,3 +1176,4 @@ const styles = StyleSheet.create({
 });
 
 export default RegisterScreen;
+

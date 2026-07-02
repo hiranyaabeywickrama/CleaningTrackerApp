@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     paddingHorizontal: 20,
-    marginTop: 'auto',
+    marginTop: 60,
     position: 'relative',
     borderTopWidth: 1,
     borderTopColor: 'rgba(16, 185, 129, 0.08)' // Green border

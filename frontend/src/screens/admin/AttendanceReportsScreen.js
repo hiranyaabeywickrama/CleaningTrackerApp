@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import AppFooter from '../../components/AppFooter';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import AppFooter from '../../components/AppFooter';
 import { Colors } from '../../theme/colors';
+import AppFooter from '../../components/AppFooter';
 import { attendanceAPI, authAPI } from '../../api/client';
 
 const AttendanceReportsScreen = () => {
@@ -115,7 +118,8 @@ const AttendanceReportsScreen = () => {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          <AppFooter />
+        </ScrollView>
         </View>
 
         {/* Analytics Summary Banner */}
@@ -168,7 +172,8 @@ const AttendanceReportsScreen = () => {
             </View>
           ))
         )}
-      </ScrollView>
+      <AppFooter />
+        </ScrollView>
     </View>
   );
 };
@@ -179,6 +184,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC'
   },
   scrollContainer: {
+    paddingBottom: 120,
     flexGrow: 1,
     padding: 16
   },
@@ -353,3 +359,5 @@ const styles = StyleSheet.create({
 });
 
 export default AttendanceReportsScreen;
+
+

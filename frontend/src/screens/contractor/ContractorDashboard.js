@@ -4136,6 +4136,7 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   scrollContainer: {
+    paddingBottom: 120,
     flexGrow: 1,
     padding: 16,
     paddingBottom: 110 // Bottom spacer for floating tab navigation bar
@@ -7211,3 +7212,4 @@ const styles = StyleSheet.create({
 });
 
 export default ContractorDashboard;
+

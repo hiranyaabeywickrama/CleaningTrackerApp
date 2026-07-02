@@ -1122,7 +1122,8 @@ const ClientDashboard = ({ user, onLogout }) => {
 
         {/* TAB 4: PROFILE */}
         {activeTab === 'profile' && renderProfileTab()}
-      </ScrollView>
+      <AppFooter />
+        </ScrollView>
 
       {/* Tabs Footer Navigation */}
       <View style={styles.tabBar}>
@@ -1324,7 +1325,8 @@ const ClientDashboard = ({ user, onLogout }) => {
                   </TouchableOpacity>
                 ))
               )}
-            </ScrollView>
+            <AppFooter />
+        </ScrollView>
 
             <TouchableOpacity 
               style={styles.calendarCloseBtn}
@@ -1402,6 +1404,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   scrollContainer: {
+    paddingBottom: 120,
     flexGrow: 1,
     padding: 20,
     paddingBottom: 100
@@ -2027,3 +2030,5 @@ const styles = StyleSheet.create({
 });
 
 export default ClientDashboard;
+
+

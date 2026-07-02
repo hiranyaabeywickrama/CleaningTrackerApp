@@ -473,6 +473,7 @@ const styles = StyleSheet.create({
     fontWeight: '900'
   },
   scrollContainer: {
+    paddingBottom: 120,
     flexGrow: 1,
     padding: 16,
     paddingBottom: 110 // Add bottom spacer for floating tab navigation!
@@ -922,3 +923,4 @@ const styles = StyleSheet.create({
 });
 
 export default AdminDashboard;
+

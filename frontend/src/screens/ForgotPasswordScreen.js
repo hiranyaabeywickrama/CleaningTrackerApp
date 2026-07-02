@@ -103,6 +103,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC' // Clean Slate Background
   },
   scrollContainer: {
+    paddingBottom: 120,
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20
@@ -176,3 +177,4 @@ const styles = StyleSheet.create({
 });
 
 export default ForgotPasswordScreen;
+
