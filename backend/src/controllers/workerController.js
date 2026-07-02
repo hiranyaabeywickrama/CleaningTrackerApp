@@ -660,6 +660,7 @@ exports.getContractorProjectsForWorker = async (req, res) => {
         const c = a.contractId;
         return {
           _id: a._id,
+          contractId: c._id,
           status: c.status,
           customerName: c.clientName,
           address: c.location?.address,
@@ -670,7 +671,10 @@ exports.getContractorProjectsForWorker = async (req, res) => {
         };
       });
 
-    const allProjects = [...jobs, ...formattedAssignments].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+    const assignmentContractIds = new Set(formattedAssignments.map(a => a.contractId ? a.contractId.toString() : ''));
+    const filteredJobs = jobs.filter(j => !j.contractId || !assignmentContractIds.has(j.contractId.toString()));
+
+    const allProjects = [...filteredJobs, ...formattedAssignments].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
 
     res.status(200).json({ success: true, count: allProjects.length, jobs: allProjects });
   } catch (error) {
