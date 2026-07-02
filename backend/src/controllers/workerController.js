@@ -665,8 +665,7 @@ exports.getContractorProjectsForWorker = async (req, res) => {
           customerName: c.clientName,
           address: c.location?.address,
           startTime: c.schedule?.date,
-          totalHoursWorked: a.actualWorkedMinutes ? parseFloat((a.actualWorkedMinutes / 60).toFixed(2)) : 
-                            (c.schedule?.durationMinutes ? parseFloat((c.schedule.durationMinutes / 60).toFixed(2)) : 0),
+          totalHoursWorked: a.actualWorkedMinutes ? parseFloat((a.actualWorkedMinutes / 60).toFixed(2)) : 0,
           expectedHours: c.schedule?.durationMinutes ? c.schedule.durationMinutes / 60 : 2
         };
       });
