@@ -1791,8 +1791,13 @@ const ContractorDashboard = ({ user, onLogout }) => {
                     <View style={styles.jobItemHeader}>
                       <View style={styles.addressCol}>
                         <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 13, marginBottom: 2 }} numberOfLines={1}>
-                          {c.clientName || 'Private Customer'}
+                          {c.clientName && c.clientName.startsWith('Freelance Job:') ? c.clientName.replace('Freelance Job: ', '') : (c.clientName || 'Private Customer')}
                         </Text>
+                        {c.clientName && c.clientName.startsWith('Freelance Job:') && (
+                          <Text style={{ fontSize: 10, color: '#3B82F6', fontWeight: 'bold', marginTop: 2, marginBottom: 2 }}>
+                            [Freelance Contract]
+                          </Text>
+                        )}
                         <Text style={styles.addressText} numberOfLines={1}>📍 {c.location?.address}</Text>
                         <Text style={styles.timeRangeText}>
                           📅 {new Date(c.schedule?.date).toLocaleDateString()}  ⏰ {formatJobTimeRange(c.schedule?.date, c.schedule?.durationMinutes ? c.schedule.durationMinutes/60 : 2)}

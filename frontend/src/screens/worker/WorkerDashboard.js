@@ -746,8 +746,13 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                           <View style={styles.jobItemHeader}>
                             <View style={styles.addressCol}>
                               <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 13, marginBottom: 2 }} numberOfLines={1}>
-                                {job.contractor?.companyName || job.contractor?.name || job.clientName || 'Private Customer'}
+                                {job.customerName && job.customerName.startsWith('Freelance Job:') ? job.customerName.replace('Freelance Job: ', '') : (job.contractor?.companyName || job.contractor?.name || job.customerName || 'Private Customer')}
                               </Text>
+                              {job.customerName && job.customerName.startsWith('Freelance Job:') && (
+                                <Text style={{ fontSize: 10, color: '#3B82F6', fontWeight: 'bold', marginTop: 2, marginBottom: 2 }}>
+                                  [Freelance Contract]
+                                </Text>
+                              )}
                               <Text style={styles.addressText} numberOfLines={1}>📍 {job.address}</Text>
                               <Text style={styles.timeRangeText}>
                                 📅 {new Date(job.startTime).toLocaleDateString()}  ⏰ {formatJobTimeRange(job.startTime, job.expectedHours)}
