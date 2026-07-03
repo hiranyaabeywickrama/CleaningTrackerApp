@@ -99,9 +99,9 @@ const styles = StyleSheet.create({
   footer: {
     backgroundColor: '#0F172A', // Slate 900
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 24, // increased for mobile safe area
     paddingHorizontal: 20,
-    marginTop: 60,
+    marginTop: 'auto', // pushes footer to the bottom of flex containers
     position: 'relative',
     borderTopWidth: 1,
     borderTopColor: 'rgba(16, 185, 129, 0.08)' // Green border
