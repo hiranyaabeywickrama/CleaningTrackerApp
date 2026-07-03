@@ -254,7 +254,7 @@ exports.getAssociatedContractors = async (req, res) => {
     const ClientRequest = require('../models/ClientRequest');
     const requests = await ClientRequest.find({
       client: req.user.id,
-      status: { $in: ['assigned', 'completed'] }
+      status: { $in: ['active', 'completed'] }
     }).populate('offers.contractor', 'name companyName email phoneNumber tags locations averageRating ratings');
 
     const contractorsSet = new Map();
