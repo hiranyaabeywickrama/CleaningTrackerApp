@@ -980,7 +980,6 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                       );
                     });
                   })()}
-                  })()}
                 </View>
                 )}
 
@@ -1059,7 +1058,6 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                       );
                     });
                   })()}
-                  })()}
                 </View>
                 )}
 
@@ -1096,7 +1094,6 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                         </View>
                       );
                     });
-                  })()}
                   })()}
                 </View>
                 )}
