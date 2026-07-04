@@ -368,6 +368,10 @@ export const contractorAPI = {
     const res = await apiClient.post(`/contractor/workers/${workerId}/assign`, { contractId });
     return res.data;
   },
+  reassignWorker: async (assignmentId, workerId) => {
+    const res = await apiClient.post(`/contractor/reassign-worker/${assignmentId}`, { workerId });
+    return res.data;
+  },
   postFreelanceJob: async (jobData) => {
     const res = await apiClient.post('/contractor/freelance', jobData);
     return res.data;

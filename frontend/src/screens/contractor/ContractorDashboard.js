@@ -1350,11 +1350,11 @@ const ContractorDashboard = ({ user, onLogout }) => {
         } else {
           Alert.alert('Error', 'Missing assignment details in notification.');
         }
+      } else if (notif.type === 'contract_accepted' || notif.type === 'contract_active') {
+        navigateToTab('projects');
       } else if (notif.type === 'offer_accepted' || (notif.data && notif.data.contractId)) {
         setBidsSubTab('accepted');
         navigateToTab('clientRequests');
-      } else if (notif.type === 'contract_accepted') {
-        navigateToTab('projects');
       } else if (notif.type === 'freelance_applied' || notif.type === 'freelance_accepted') {
         navigateToTab('freelance');
       }
@@ -1367,17 +1367,17 @@ const ContractorDashboard = ({ user, onLogout }) => {
     if (!selectedAssignmentForReassign) return;
     setReassigningWorker(true);
     try {
-      const res = await api.post(`/contractor/reassign-worker/${selectedAssignmentForReassign}`, { workerId });
-      if (res.data.success) {
+      const res = await contractorAPI.reassignWorker(selectedAssignmentForReassign, workerId);
+      if (res.success) {
         Alert.alert('Success 🎉', 'Worker reassigned successfully.');
         setShowReassignModal(false);
         setSelectedAssignmentForReassign(null);
         fetchDashboardData();
       } else {
-        Alert.alert('Error', res.data.message || 'Failed to reassign worker');
+        Alert.alert('Error', res.message || 'Failed to reassign worker');
       }
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Something went wrong');
+      Alert.alert('Error', error.response?.data?.message || error.message || 'Something went wrong');
     } finally {
       setReassigningWorker(false);
     }
@@ -2673,11 +2673,16 @@ const ContractorDashboard = ({ user, onLogout }) => {
                                   ) : (
                                     <View style={styles.crewChecklist}>
                                       {rosterWorkers.map(worker => {
-                                        const isAssigned = assignmentsList.some(a => {
+                                        const assignmentForWorker = assignmentsList.find(a => {
                                           const aId = typeof a.workerId === 'object' ? a.workerId._id : a.workerId;
-                                          return aId.toString() === worker._id.toString() && ['pending', 'accepted'].includes(a.response);
+                                          return aId.toString() === worker._id.toString();
                                         });
+                                        const isAssigned = assignmentForWorker && ['pending', 'accepted'].includes(assignmentForWorker.response);
+                                        const hasRejected = assignmentForWorker && ['rejected', 'expired'].includes(assignmentForWorker.response);
                                         const isChecked = (selectedWorkersForContract[c._id] || []).includes(worker._id);
+                                        
+                                        // Do not render workers who have explicitly rejected
+                                        if (hasRejected) return null;
 
                                         return (
                                           <TouchableOpacity
@@ -4379,13 +4384,15 @@ const ContractorDashboard = ({ user, onLogout }) => {
                 
                 const availableForReassign = rosterWorkers.filter(worker => {
                   if (worker.status === 'busy') return false;
-                  if (rejectedWorkerIdForReassign && worker._id === rejectedWorkerIdForReassign) return false;
                   if (currentContractForReassign) {
-                    const isAlreadyInContract = currentContractForReassign.assignments?.some(a => 
-                      (a.workerId?._id === worker._id || a.workerId === worker._id) && 
-                      (a.response === 'accepted' || a.response === 'pending')
+                    const assignmentForWorker = currentContractForReassign.assignments?.find(a => 
+                      (a.workerId?._id === worker._id || a.workerId === worker._id)
                     );
-                    if (isAlreadyInContract) return false;
+                    
+                    if (assignmentForWorker) {
+                      // If they accepted, are pending, rejected, or expired, don't show them here
+                      return false;
+                    }
                   }
                   return true;
                 });
