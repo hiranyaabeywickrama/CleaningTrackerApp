@@ -940,10 +940,11 @@ const ContractorDashboard = ({ user, onLogout }) => {
       return;
     }
 
-    if (rosterWorkers.length < 1) {
+    const availableWorkers = rosterWorkers.filter(w => !w.hasClash);
+    if (availableWorkers.length < 1) {
       Alert.alert(
         'No Crew Available',
-        'You do not have any crew members rostered to broadcast this contract to.'
+        'You do not have any crew members available at this time to broadcast this contract to.'
       );
       return;
     }
@@ -984,7 +985,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         packageId: selectedPackage._id,
-        workers: rosterWorkers.filter(w => w.status !== 'busy').map(w => w._id),
+        workers: rosterWorkers.filter(w => !w.hasClash).map(w => w._id),
         requiredWorkersCount: parseInt(requiredWorkersCount) || 1,
         isUrgent: selectedPackage.name === 'Premium' ? isUrgent : false,
         date,
@@ -2705,7 +2706,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                                                 {worker.name} {isAssigned && '(Already Assigned)'}
                                               </Text>
                                               <Text style={styles.checklistWorkerStatus}>
-                                                Status: {(worker.status === 'available' || worker.status === 'active' || !worker.status) ? 'Available' : 'Busy'}
+                                                Status: {worker.hasClash ? 'Busy' : 'Available'}
                                               </Text>
                                             </View>
                                           </TouchableOpacity>
@@ -3790,8 +3791,8 @@ const ContractorDashboard = ({ user, onLogout }) => {
                       <View style={{ marginTop: 10 }}>
                         {(() => {
                           const displayedWorkers = selectedRosterWorker
-                            ? rosterWorkers.filter(w => w._id === selectedRosterWorker._id && w.status !== 'busy')
-                            : rosterWorkers.filter(w => w.status !== 'busy');
+                            ? rosterWorkers.filter(w => w._id === selectedRosterWorker._id)
+                            : rosterWorkers;
                             
                           if (displayedWorkers.length === 0) {
                             return (

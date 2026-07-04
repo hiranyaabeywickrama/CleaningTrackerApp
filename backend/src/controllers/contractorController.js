@@ -437,12 +437,23 @@ exports.getContractorWorkers = async (req, res) => {
           }
         }
         
-        // Mark workers as busy
+        // Mark workers as busy and add hasClash flag
         workers = workers.map(w => ({
           ...w,
+          hasClash: busyWorkerIds.has(w._id.toString()),
           status: busyWorkerIds.has(w._id.toString()) ? 'busy' : w.status
         }));
+      } else {
+        workers = workers.map(w => ({
+          ...w,
+          hasClash: false
+        }));
       }
+    } else {
+      workers = workers.map(w => ({
+        ...w,
+        hasClash: false
+      }));
     }
 
     res.status(200).json({ success: true, count: workers.length, workers });
