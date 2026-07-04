@@ -543,6 +543,9 @@ exports.getWorkerRosterProfile = async (req, res) => {
       })
       .map(a => {
         const c = a.contractId;
+        const associatedJob = jobs.find(j => j.contractId && j.contractId.toString() === c._id.toString() && j.assignedWorker.toString() === worker._id.toString());
+        const jobHours = associatedJob ? associatedJob.totalHoursWorked : 0;
+
         return {
           _id: a._id,
           contractId: c._id,
@@ -551,7 +554,7 @@ exports.getWorkerRosterProfile = async (req, res) => {
           customerName: c.clientName,
           address: c.location?.address,
           startTime: c.schedule?.date,
-          totalHoursWorked: a.actualWorkedMinutes ? parseFloat((a.actualWorkedMinutes / 60).toFixed(2)) : 0,
+          totalHoursWorked: a.actualWorkedMinutes ? parseFloat((a.actualWorkedMinutes / 60).toFixed(2)) : (jobHours || 0),
           expectedHours: c.schedule?.durationMinutes ? c.schedule.durationMinutes / 60 : 2
         };
       });
