@@ -1351,7 +1351,7 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
           onPress={() => setActiveTab('profile')}
         >
           <Text style={[styles.tabBarIcon, activeTab === 'profile' && styles.tabBarIconActive]}>👤</Text>
-          <Text style={[styles.tabBarLabel, activeTab === 'profile' && styles.tabBarLabelActive]}>Profile</Text>
+          <Text style={[styles.tabBarLabel, activeTab === 'profile' && styles.tabBarLabelActive]}>Account</Text>
           {activeTab === 'profile' && <View style={styles.tabActiveIndicator} />}
         </TouchableOpacity>
       </View>
