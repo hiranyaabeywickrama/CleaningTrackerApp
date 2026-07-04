@@ -1805,6 +1805,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
           {/* Ongoing Projects Section */}
           {workerDetailTab === 'ongoing' && (
+          <>
           <View style={[styles.profileSection, { marginBottom: 20 }]}>
             <Text style={[styles.profileSectionTitle, { fontSize: 16, marginBottom: 12, color: Colors.primary, fontWeight: '800' }]}>📁 Ongoing Projects ({workerOngoingProjects.length})</Text>
             {workerOngoingProjects.length === 0 ? (
@@ -1912,6 +1913,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
               );
             })()}
           </View>
+          </>
           )}
 
           {/* Covered Projects Section */}
