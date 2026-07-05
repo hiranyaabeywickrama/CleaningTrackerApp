@@ -2646,12 +2646,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                                     <Text style={styles.noWorkersText}>No crew members found on your roster. Please add workers first.</Text>
                                   ) : (
                                     <View style={styles.crewChecklist}>
-                                      {rosterWorkers.filter(worker => {
-                                        return !assignmentsList.some(a => {
-                                          const aId = typeof a.workerId === 'object' ? a.workerId._id : a.workerId;
-                                          return aId.toString() === worker._id.toString() && ['rejected', 'expired'].includes(a.response);
-                                        });
-                                      }).map(worker => {
+                                      {rosterWorkers.map(worker => {
                                         const isAssigned = assignmentsList.some(a => {
                                           const aId = typeof a.workerId === 'object' ? a.workerId._id : a.workerId;
                                           return aId.toString() === worker._id.toString() && ['pending', 'accepted'].includes(a.response);
