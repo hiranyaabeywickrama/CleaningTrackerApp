@@ -2943,7 +2943,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   
                   {job.status !== 'open' ? (
                     <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.primary }}>
-                      Accepted Cleaner: {job.approvedWorker?.name} (Shift assigned)
+                      Accepted Cleaner: {job.approvedWorker?.name} {job.status === 'completed' ? '(Completed work)' : '(Shift assigned)'}
                     </Text>
                   ) : (
                     <Text style={styles.noOffersText}>Waiting for crew members to accept.</Text>
