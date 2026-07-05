@@ -22,6 +22,7 @@ import CustomButton from '../../components/CustomButton';
 import AppFooter from '../../components/AppFooter';
 import TimeInput from '../../components/TimeInput';
 import backScrollEmitter from '../../utils/backScrollEmitter';
+import { formatDuration } from '../../utils/formatters';
 import { State, Country, City } from 'country-state-city';
 import * as Location from 'expo-location';
 import EmbeddedGoogleMap from '../../components/EmbeddedGoogleMap';
@@ -380,8 +381,11 @@ const ClientDashboard = ({ user, onLogout }) => {
     const filtered = [];
     const lowerQuery = query.toLowerCase().trim();
     for (let i = 0; i < GLOBAL_CITIES.length; i++) {
-      if (GLOBAL_CITIES[i].name.toLowerCase().includes(lowerQuery)) {
-        filtered.push(GLOBAL_CITIES[i]);
+      const c = GLOBAL_CITIES[i];
+      const matchName = c.name.toLowerCase().startsWith(lowerQuery);
+      const matchState = c.stateCode.toLowerCase() === lowerQuery || c.stateCode.toLowerCase().startsWith(lowerQuery);
+      if (matchName || matchState) {
+        filtered.push(c);
         if (filtered.length >= 10) break;
       }
     }
@@ -792,8 +796,11 @@ const ClientDashboard = ({ user, onLogout }) => {
     const filtered = [];
     const lowerQuery = query.toLowerCase().trim();
     for (let i = 0; i < GLOBAL_CITIES.length; i++) {
-      if (GLOBAL_CITIES[i].name.toLowerCase().includes(lowerQuery)) {
-        filtered.push(GLOBAL_CITIES[i]);
+      const c = GLOBAL_CITIES[i];
+      const matchName = c.name.toLowerCase().startsWith(lowerQuery);
+      const matchState = c.stateCode.toLowerCase() === lowerQuery || c.stateCode.toLowerCase().startsWith(lowerQuery);
+      if (matchName || matchState) {
+        filtered.push(c);
         if (filtered.length >= 10) break;
       }
     }
@@ -1271,7 +1278,7 @@ const ClientDashboard = ({ user, onLogout }) => {
                       <Text style={styles.requestCategory}>
                         {r.category === 'Electrical' ? '🔌' : r.category === 'Plumbing' ? '🔧' : r.category === 'Cleaning' ? '🧹' : '🛠️'} {r.category} Request
                       </Text>
-                      <Text style={styles.requestDate}>📅 {new Date(r.date).toLocaleDateString()} at {r.time}{r.duration ? ` (${r.duration} mins)` : ''}</Text>
+                      <Text style={styles.requestDate}>📅 {new Date(r.date).toLocaleDateString()} at {r.time}{r.duration ? ` (${formatDuration(r.duration)})` : ''}</Text>
                       <Text style={styles.requestLoc}>📍 Location: {r.location}</Text>
                     </View>
                     <View style={[

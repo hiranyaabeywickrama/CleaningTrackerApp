@@ -7,6 +7,7 @@ import CustomInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
 import io from 'socket.io-client';
 import backScrollEmitter from '../../utils/backScrollEmitter';
+import { formatDuration } from '../../utils/formatters';
 
 const WorkerDashboard = ({ user, onLogout, navigation }) => {
   const [activeTab, _setActiveTab] = useState('home'); // 'home', 'freelance', 'profile'
@@ -309,6 +310,53 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
     });
     setProfileStateSuggestions(mapped);
   };
+
+  const renderNotificationsTab = () => (
+    <View style={{ paddingBottom: 30 }}>
+      <Text style={styles.sectionTitle}>Notifications 🔔</Text>
+      <Text style={styles.sectionSubtitle}>Your recent alerts and updates.</Text>
+      <View style={{ marginTop: 15 }}>
+        {loadingNotifications ? (
+          <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
+        ) : notifications.length === 0 ? (
+          <Text style={{ textAlign: 'center', color: '#64748B', fontSize: 14, marginVertical: 20 }}>
+            No notifications yet.
+          </Text>
+        ) : (
+          notifications.map(notif => (
+            <TouchableOpacity
+              key={notif._id}
+              style={{
+                padding: 16,
+                backgroundColor: notif.read ? '#FFFFFF' : 'rgba(16, 185, 129, 0.05)',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: notif.read ? '#E2E8F0' : 'rgba(16, 185, 129, 0.3)',
+                marginBottom: 10,
+                elevation: 1
+              }}
+              onPress={() => handleNotificationClick(notif)}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 15 }}>
+                  {notif.title}
+                </Text>
+                {!notif.read && (
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' }} />
+                )}
+              </View>
+              <Text style={{ fontSize: 14, color: '#475569', marginBottom: 8, lineHeight: 20 }}>
+                {notif.message}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#94A3B8', alignSelf: 'flex-end', fontWeight: '500' }}>
+                {new Date(notif.createdAt).toLocaleString()}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+    </View>
+  );
 
   const renderProfileTab = () => {
     if (showEditProfile) {
@@ -843,7 +891,7 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
         <TouchableOpacity 
           style={{ position: 'relative', padding: 6 }} 
           activeOpacity={0.7}
-          onPress={() => setShowNotificationsModal(true)}
+          onPress={() => setActiveTab('notifications')}
         >
           <Text style={{ fontSize: 20 }}>🔔</Text>
           {unreadNotificationsCount > 0 && (
@@ -966,7 +1014,10 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                             <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '700' }}>🕒 {remaining}</Text>
                           </View>
                           <Text style={{ fontSize: 12, color: '#475569' }}>📍 {contract?.location?.address}</Text>
-                          <Text style={{ fontSize: 12, color: '#475569' }}>📅 {contract?.schedule?.date ? new Date(contract.schedule.date).toLocaleDateString() : ''} at {contract?.schedule?.startTime} ({contract?.schedule?.durationMinutes} mins)</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                            <Text style={{ fontSize: 16 }}>📋 </Text>
+                            <Text style={{ fontSize: 12, color: '#475569' }}>📅 {contract?.schedule?.date ? new Date(contract.schedule.date).toLocaleDateString() : ''} at {contract?.schedule?.startTime} ({formatDuration(contract?.schedule?.durationMinutes)})</Text>
+                          </View>
                           {contract?.notes ? (
                             <Text style={{ fontSize: 11, color: '#64748B', fontStyle: 'italic', marginTop: 4 }}>Notes: {contract.notes}</Text>
                           ) : null}
@@ -1319,6 +1370,7 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
           </View>
         )}
 
+        {activeTab === 'notifications' && renderNotificationsTab()}
         {activeTab === 'profile' && renderProfileTab()}
         {activeTab === 'help' && renderHelpAndSupport()}
         {activeTab === 'about' && renderAboutUs()}
@@ -1364,77 +1416,6 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Crew Member Notifications Modal */}
-      <Modal
-        visible={showNotificationsModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowNotificationsModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.calendarContainer}>
-            <View style={styles.calendarHeader}>
-              <Text style={styles.calendarMonthTitle}>🔔 Notifications</Text>
-              <TouchableOpacity 
-                onPress={() => setShowNotificationsModal(false)}
-                style={styles.calendarNavBtn}
-              >
-                <Text style={styles.calendarNavBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView 
-              style={{ maxHeight: 350, marginVertical: 10 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {loadingNotifications ? (
-                <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
-              ) : notifications.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: '#64748B', fontSize: 13, marginVertical: 20 }}>
-                  No notifications yet.
-                </Text>
-              ) : (
-                notifications.map(notif => (
-                  <TouchableOpacity
-                    key={notif._id}
-                    style={{
-                      padding: 12,
-                      backgroundColor: notif.read ? '#FFFFFF' : 'rgba(16, 185, 129, 0.05)',
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor: notif.read ? '#E2E8F0' : 'rgba(16, 185, 129, 0.2)',
-                      marginBottom: 8
-                    }}
-                    onPress={() => handleNotificationClick(notif)}
-                  >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 13 }}>
-                        {notif.title}
-                      </Text>
-                      {!notif.read && (
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' }} />
-                      )}
-                    </View>
-                    <Text style={{ fontSize: 12, color: '#475569', marginBottom: 6 }}>
-                      {notif.message}
-                    </Text>
-                    <Text style={{ fontSize: 9.5, color: '#94A3B8', alignSelf: 'flex-end' }}>
-                      {new Date(notif.createdAt).toLocaleString()}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-
-            <TouchableOpacity 
-              style={styles.calendarCloseBtn}
-              onPress={() => setShowNotificationsModal(false)}
-            >
-              <Text style={styles.calendarCloseBtnText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
