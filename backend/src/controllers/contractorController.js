@@ -521,30 +521,28 @@ exports.getWorkerRosterProfile = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     const Job = require('../models/Job');
-    const filter = {
-      assignedWorker: worker._id,
-      contractor: req.user.id
-    };
+    const allJobs = await Job.find({ assignedWorker: worker._id }).lean();
+    let jobs = allJobs.filter(j => j.contractor?.toString() === req.user.id.toString() || j.status === 'completed');
 
     if (startDate && endDate) {
-      filter.startTime = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      jobs = jobs.filter(j => {
+        if (!j.startTime) return true;
+        const d = new Date(j.startTime);
+        return d >= start && d <= end;
+      });
     }
-
-    const WorkerAssignment = require('../models/WorkerAssignment');
-    const jobs = await Job.find(filter).lean();
-
     const assignmentFilter = {
       workerId: worker._id,
       response: { $in: ['accepted', 'completed'] }
     };
     
+    const WorkerAssignment = require('../models/WorkerAssignment');
     const assignments = await WorkerAssignment.find(assignmentFilter).populate('contractId').lean();
     
     const formattedAssignments = assignments
-      .filter(a => a.contractId && (a.contractId.contractorId?.toString() === req.user.id.toString()))
+      .filter(a => a.contractId && (a.contractId.contractorId?.toString() === req.user.id.toString() || a.workerStatus === 'Completed' || a.contractId.status === 'completed'))
       .filter(a => {
         if (!startDate || !endDate) return true;
         const sDate = a.contractId.schedule?.date;

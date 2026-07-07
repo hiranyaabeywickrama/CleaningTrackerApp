@@ -1629,20 +1629,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
               )}
             </View>
           </View>
-          <View style={styles.profileOptionDivider} />
 
-          <TouchableOpacity style={styles.profileOptionBtn}>
-            <Text style={styles.profileOptionIcon}>⭐</Text>
-            <Text style={styles.profileOptionText}>Reviews & Ratings</Text>
-            <Text style={styles.profileOptionArrow}>›</Text>
-          </TouchableOpacity>
-          <View style={styles.profileOptionDivider} />
-          
-          <TouchableOpacity style={styles.profileOptionBtn}>
-            <Text style={styles.profileOptionIcon}>📋</Text>
-            <Text style={styles.profileOptionText}>My Reviews and My Ratings</Text>
-            <Text style={styles.profileOptionArrow}>›</Text>
-          </TouchableOpacity>
 
           {/* Help & Support Section */}
           <View style={styles.profileSectionHeader}>
@@ -1961,6 +1948,9 @@ const ContractorDashboard = ({ user, onLogout }) => {
       
       // Filter ongoing projects (active status) assigned to this worker
       const workerOngoingProjects = contracts.filter(c => {
+        const isPastDate = c.schedule?.date && new Date(c.schedule.date).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+        if (isPastDate) return false;
+        
         const isOngoing = c.status === 'active';
         if (!isOngoing) return false;
         return c.assignments?.some(assign => {
@@ -2592,7 +2582,8 @@ const ContractorDashboard = ({ user, onLogout }) => {
                           const assignmentsList = c.assignments || (c.workers || []).map(w => ({ workerId: w, response: 'accepted' }));
                           const activeAssignmentsCount = assignmentsList.filter(a => ['pending', 'accepted'].includes(a.response)).length;
                           const hasRejections = assignmentsList.some(a => ['rejected', 'expired'].includes(a.response));
-                          const showChecklist = activeAssignmentsCount === 0 || reassignContractId === c._id;
+                          const isPastDate = new Date(c.schedule?.date).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+                          const showChecklist = (activeAssignmentsCount === 0 || reassignContractId === c._id) && !isPastDate;
 
                           return (
                             <>
@@ -2624,7 +2615,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                                     })}
                                   </View>
                                   
-                                  {!showChecklist && (
+                                  {!showChecklist && !isPastDate && (
                                     <TouchableOpacity 
                                       style={{ marginTop: 10, alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, backgroundColor: hasRejections ? '#FEF2F2' : '#F0F9FF', borderRadius: 8, borderWidth: 1, borderColor: hasRejections ? '#FECACA' : '#BAE6FD' }}
                                       onPress={() => setReassignContractId(c._id)}

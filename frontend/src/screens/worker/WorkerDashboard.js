@@ -488,22 +488,7 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
         {/* Options List */}
         <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.05, shadowRadius: 8 }}>
           
-          {/* Activity Section */}
-          <View style={styles.profileSectionHeader}>
-            <Text style={styles.profileSectionHeaderText}>Activity</Text>
-          </View>
-          <TouchableOpacity style={styles.profileOptionBtn}>
-            <Text style={styles.profileOptionIcon}>⭐</Text>
-            <Text style={styles.profileOptionText}>Reviews & Ratings</Text>
-            <Text style={styles.profileOptionArrow}>›</Text>
-          </TouchableOpacity>
-          <View style={styles.profileOptionDivider} />
-          
-          <TouchableOpacity style={styles.profileOptionBtn}>
-            <Text style={styles.profileOptionIcon}>📋</Text>
-            <Text style={styles.profileOptionText}>My Reviews and My Ratings</Text>
-            <Text style={styles.profileOptionArrow}>›</Text>
-          </TouchableOpacity>
+
 
           {/* Help & Support Section */}
           <View style={styles.profileSectionHeader}>
@@ -1012,10 +997,16 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                 {contractorDetailTab === 'ongoing' && (
                 <View style={{ marginBottom: 20 }}>
                   <Text style={[styles.sectionTitle, { fontSize: 14, marginBottom: 8 }]}>⏰ Ongoing Projects ({
-                    contractorProjects.filter(j => j.status !== 'completed').length
+                    contractorProjects.filter(j => {
+                      const isPastDate = j.schedule?.date && new Date(j.schedule.date).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+                      return j.status !== 'completed' && !isPastDate;
+                    }).length
                   })</Text>
                   {(() => {
-                    const ongoingJobs = contractorProjects.filter(j => j.status !== 'completed');
+                    const ongoingJobs = contractorProjects.filter(j => {
+                      const isPastDate = j.schedule?.date && new Date(j.schedule.date).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+                      return j.status !== 'completed' && !isPastDate;
+                    });
                     if (ongoingJobs.length === 0) {
                       return <Text style={{ color: '#64748B', fontSize: 12, paddingLeft: 8 }}>No ongoing projects today.</Text>;
                     }

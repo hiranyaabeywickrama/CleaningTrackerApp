@@ -644,10 +644,8 @@ exports.getContractorProjectsForWorker = async (req, res) => {
     const Job = require('../models/Job');
     const WorkerAssignment = require('../models/WorkerAssignment');
 
-    const jobs = await Job.find({
-      assignedWorker: req.user.id,
-      contractor: contractorId
-    }).lean();
+    const allJobs = await Job.find({ assignedWorker: req.user.id }).lean();
+    const jobs = allJobs.filter(j => j.contractor?.toString() === contractorId.toString() || j.status === 'completed');
 
     const assignments = await WorkerAssignment.find({
       workerId: req.user.id,
@@ -655,7 +653,7 @@ exports.getContractorProjectsForWorker = async (req, res) => {
     }).populate('contractId').lean();
 
     const formattedAssignments = assignments
-      .filter(a => a.contractId && (a.contractId.contractorId?.toString() === contractorId.toString()))
+      .filter(a => a.contractId && (a.contractId.contractorId?.toString() === contractorId.toString() || a.workerStatus === 'Completed' || a.contractId.status === 'completed'))
       .map(a => {
         const c = a.contractId;
         const associatedJob = jobs.find(j => j.contractId && j.contractId.toString() === c._id.toString() && j.assignedWorker.toString() === req.user.id.toString());
