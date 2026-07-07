@@ -979,6 +979,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
     setLoading(true);
     try {
+      const fullPhoneNumber = clientPhone.trim() ? `${countryCode}${clientPhone.trim()}` : '';
       const contractData = {
         clientName: clientName.trim(),
         clientPhone: fullPhoneNumber,
