@@ -21,7 +21,10 @@
       "backgroundColor": "#0F172A"
     },
     "extra": {
-      "apiUrl": "https://cleaningtrackerapp-production.up.railway.app"
+      "apiUrl": "https://cleaningtrackerapp-production.up.railway.app",
+      "eas": {
+        "projectId": "54c2eff4-fa43-4d13-a0b6-aeda212457eb"
+      }
     },
     "plugins": [
       [
