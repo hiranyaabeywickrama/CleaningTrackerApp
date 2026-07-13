@@ -21,7 +21,10 @@
       "backgroundColor": "#0F172A"
     },
     "extra": {
-      "apiUrl": "https://cleaningtrackerapp-production-1896.up.railway.app"
+      "apiUrl": "https://cleaningtrackerapp-production-1896.up.railway.app",
+      "eas": {
+        "projectId": "6629f232-a4fe-4b3e-9313-38f675328e54"
+      }
     },
     "plugins": [
       [
@@ -32,6 +35,7 @@
           }
         }
       ]
-    ]
+    ],
+    "owner": "hiruabey"
   }
 }
