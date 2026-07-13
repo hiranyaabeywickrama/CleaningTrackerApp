@@ -3,7 +3,7 @@ import { Platform, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PRODUCTION_URL = 'https://cleaningtrackerapp-production.up.railway.app';
+const PRODUCTION_URL = 'https://cleaningtrackerapp-production-1896.up.railway.app';
 
 export const isStandaloneApp = () =>
   Constants.executionEnvironment === 'standalone' ||
