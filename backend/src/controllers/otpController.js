@@ -127,7 +127,7 @@ exports.requestOtp = async (req, res) => {
     const isLogin = !!existingUser;
     let emailResult;
 
-    if (true) {
+    if (process.env.ALLOW_TEST_OTP === 'true') {
       console.log(`[TEST MODE OTP] Email bypassed. Verification Code is: ${rawOtp}`);
       emailResult = { to: cleanEmail };
     } else {
@@ -153,7 +153,7 @@ exports.requestOtp = async (req, res) => {
       sentTo: emailResult.to
     };
 
-    if (true) {
+    if (process.env.ALLOW_TEST_OTP === 'true') {
       payload.devOtpCode = rawOtp;
       payload.message = `Test mode: use code ${rawOtp} (email bypass enabled).`;
     }
