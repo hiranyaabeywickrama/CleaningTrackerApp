@@ -13,9 +13,11 @@ const generateToken = (id) => {
   );
 };
 
-// Helper: generate a random 6-digit OTP code
+const crypto = require('crypto');
+
+// Helper: generate a random 6-digit OTP code securely
 const generate6DigitCode = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 /**
@@ -186,8 +188,8 @@ exports.verifyOtp = async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // --- Find all unexpired OTP records for this email ---
-    const verifications = await OTPVerification.find({ email: cleanEmail, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
+    // --- Find all unexpired, unverified OTP records for this email ---
+    const verifications = await OTPVerification.find({ email: cleanEmail, expiresAt: { $gt: new Date() }, verified: false }).sort({ createdAt: -1 });
 
     if (verifications.length === 0) {
       return res.status(400).json({ success: false, message: 'No valid verification request found or code expired. Please request a new code.' });
@@ -197,7 +199,7 @@ exports.verifyOtp = async (req, res) => {
     const latestVerification = verifications[0];
     const attemptLimit = env.otpLoginAttemptLimit || 5;
     if (latestVerification.attempts >= attemptLimit) {
-      await OTPVerification.deleteMany({ email: cleanEmail });
+      await OTPVerification.updateMany({ email: cleanEmail }, { verified: true }); // mark as verified to disable them, keeping records for rate limit
       return res.status(429).json({
         success: false,
         message: 'Maximum verification attempts exceeded. Please request a new code.'
@@ -228,8 +230,8 @@ exports.verifyOtp = async (req, res) => {
       });
     }
 
-    // --- OTP is valid: clean up all OTP records for this email ---
-    await OTPVerification.deleteMany({ email: cleanEmail });
+    // --- OTP is valid: mark all OTP records for this email as verified ---
+    await OTPVerification.updateMany({ email: cleanEmail }, { verified: true });
 
     // --- Determine effective role (from OTP record for security) ---
     const effectiveRole = matchedVerification.role;

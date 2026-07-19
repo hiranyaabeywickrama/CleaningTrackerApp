@@ -27,18 +27,24 @@ const io = socketio(server, {
   }
 });
 
+const jwt = require('jsonwebtoken');
+
 // -------------------------------------------------------------------
-// Socket.io handshake auth – allow optional role during polling phase
+// Socket.io handshake auth – JWT token verification
 // -------------------------------------------------------------------
 io.use((socket, next) => {
-  const { role, userId } = socket.handshake.auth || {};
-  // If a role is supplied, enforce that it is contractor or worker.
-  if (role && role !== 'contractor' && role !== 'worker') {
-    return next(new Error('Unauthorized socket role'));
+  const token = socket.handshake.auth?.token;
+  if (!token) {
+    return next(new Error('Authentication error: No token provided'));
   }
-  socket.role = role; // may be undefined for the initial poll request
-  socket.userId = userId;
-  next();
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    socket.role = decoded.role;
+    next();
+  } catch (err) {
+    return next(new Error('Authentication error: Invalid token'));
+  }
 });
 
 // Attach socket.io server instance to app settings so controllers can access it
@@ -85,6 +91,15 @@ app.use('/api/gps', gpsRoutes);
 const socketHandler = require('./socket/socketHandler');
 socketHandler(io);
 
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled Error:', err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Server Error'
+  });
+});
+
 // Define Port
 const PORT = process.env.PORT || 5000;
 
@@ -93,35 +108,47 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Trigger nodemon reload 2
+// A simple in-memory flag for cron execution in a single instance (for multi-instance, a DB lock is required)
+// To keep it simple and robust, we will wrap the execution in a DB check.
+const SystemConfig = require('./models/SystemConfig');
+
+const runLockedCron = async (taskName, intervalMs, taskFn) => {
+  setInterval(async () => {
+    try {
+      // Find and update atomically to acquire lock
+      const lock = await SystemConfig.findOneAndUpdate(
+        { key: `cron_lock_${taskName}`, lockedUntil: { $lt: new Date() } },
+        { $set: { lockedUntil: new Date(Date.now() + intervalMs - 5000) } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      if (lock) {
+        await taskFn();
+      }
+    } catch (err) {
+      if (err.code !== 11000) { // Ignore upsert duplicates
+        console.error(`Error executing ${taskName}:`, err.message);
+      }
+    }
+  }, intervalMs);
+};
 
 // Auto-expire pending contract requests every minute
-setInterval(async () => {
-  try {
-    const result = await processExpiredAssignments(io);
-    if (result.expired > 0) {
-      console.log(`Expired ${result.expired} pending worker assignment(s)`);
-    }
-  } catch (err) {
-    console.error('Assignment expiry job error:', err.message);
+runLockedCron('assignmentExpiry', 60 * 1000, async () => {
+  const result = await processExpiredAssignments(io);
+  if (result.expired > 0) {
+    console.log(`Expired ${result.expired} pending worker assignment(s)`);
   }
-}, 60 * 1000);
+});
 
-// Auto-renew contractor plans daily (charge another month if auto-renew is on)
-setInterval(async () => {
-  try {
-    const result = await processSubscriptionRenewals();
-    if (result.renewed > 0 || result.expired > 0) {
-      console.log(`Subscriptions processed — renewed: ${result.renewed}, expired: ${result.expired}`);
-    }
-  } catch (err) {
-    console.error('Subscription renewal job error:', err.message);
+// Auto-renew contractor plans daily
+runLockedCron('subscriptionRenewal', 60 * 60 * 1000, async () => {
+  const result = await processSubscriptionRenewals();
+  if (result.renewed > 0 || result.expired > 0) {
+    console.log(`Subscriptions processed — renewed: ${result.renewed}, expired: ${result.expired}`);
   }
-}, 60 * 60 * 1000);
+});
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
   console.error(`Unhandled Rejection Error: ${err.message}`);
-  // Close server & exit process
-  // server.close(() => process.exit(1));
 });

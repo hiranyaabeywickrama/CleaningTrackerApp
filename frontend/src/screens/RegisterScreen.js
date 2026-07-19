@@ -558,19 +558,24 @@ const RegisterScreen = ({ navigation, route }) => {
                           if (val.trim().length > 0) {
                             setShowLocationSuggestions(true);
                             const query = val.toLowerCase().trim();
-                            const filtered = GLOBAL_CITIES.filter(
-                              c => c.name.toLowerCase().includes(query)
-                            ).slice(0, 100);
-                            const mapped = filtered.map(c => {
-                              const country = countryMap[c.countryCode];
-                              const stateName = stateMap[`${c.countryCode}-${c.stateCode}`] || c.stateCode;
-                              return {
-                                name: c.name,
-                                displayName: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`,
-                                flag: country ? country.flag : ''
-                              };
-                            });
-                            setFilteredLocations(mapped);
+                            latestLocationQuery.current = query;
+                            
+                            setTimeout(() => {
+                              if (latestLocationQuery.current !== query) return;
+                              const filtered = GLOBAL_CITIES.filter(
+                                c => c.name.toLowerCase().includes(query)
+                              ).slice(0, 100);
+                              const mapped = filtered.map(c => {
+                                const country = countryMap[c.countryCode];
+                                const stateName = stateMap[`${c.countryCode}-${c.stateCode}`] || c.stateCode;
+                                return {
+                                  name: c.name,
+                                  displayName: `${c.name}, ${stateName}, ${country ? country.name : c.countryCode}`,
+                                  flag: country ? country.flag : ''
+                                };
+                              });
+                              setFilteredLocations(mapped);
+                            }, 300);
                           } else {
                             setFilteredLocations([]);
                             setShowLocationSuggestions(true);
@@ -668,13 +673,12 @@ const RegisterScreen = ({ navigation, route }) => {
                     {GLOBAL_STATE_OPTIONS.find(st => st.displayName === selectedState)?.countryFlag || '🌍'}
                   </Text>
                   <TextInput
-                    style={[styles.locationInput, selectedRole === 'worker' && { backgroundColor: '#F8FAFC', color: '#64748B', fontWeight: '800' }]}
+                    style={styles.locationInput}
                     value={isAutoDetectingLocation ? 'Auto-detecting your location...' : stateSearchInput}
-                    editable={selectedRole !== 'worker'}
-                    placeholder={selectedRole === 'worker' ? "Auto-detecting..." : "Select or type your state"}
+                    editable={true}
+                    placeholder="Select or type your state"
                     placeholderTextColor="#94A3B8"
                     onChangeText={(val) => {
-                      if (selectedRole === 'worker') return;
                       setStateSearchInput(val);
                       setSelectedState(''); // clear selected until they select a valid option
                       setErrors((e) => ({ ...e, state: '' }));
@@ -682,17 +686,21 @@ const RegisterScreen = ({ navigation, route }) => {
                       if (val.trim().length > 0) {
                         setShowStateDropdown(true);
                         const query = val.toLowerCase().trim();
-                        const filtered = GLOBAL_STATE_OPTIONS.filter(
-                          st => st.name.toLowerCase().includes(query) || st.countryName.toLowerCase().includes(query)
-                        );
-                        setFilteredStates(filtered.slice(0, 100));
+                        latestStateQuery.current = query;
+                        
+                        setTimeout(() => {
+                          if (latestStateQuery.current !== query) return;
+                          const filtered = GLOBAL_STATE_OPTIONS.filter(
+                            st => st.name.toLowerCase().includes(query) || st.countryName.toLowerCase().includes(query)
+                          );
+                          setFilteredStates(filtered.slice(0, 100));
+                        }, 300);
                       } else {
                         setFilteredStates([]);
                         setShowStateDropdown(true);
                       }
                     }}
                     onFocus={() => {
-                      if (selectedRole === 'worker') return;
                       setShowStateDropdown(true);
                       setShowCategoryDropdown(false);
                       setShowLocationSuggestions(false);

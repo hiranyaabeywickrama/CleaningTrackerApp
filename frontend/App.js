@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, DeviceEventEmitter } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
@@ -67,6 +67,15 @@ export default function App() {
     };
 
     validateAndRestoreSession();
+  }, []);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('session_expired', () => {
+      handleLogout();
+    });
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
 

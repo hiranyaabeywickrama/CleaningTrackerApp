@@ -214,6 +214,11 @@ exports.rateContractor = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Contract ID is required to submit a rating' });
     }
 
+    const contract = await Contract.findOne({ _id: contractId, clientId: req.user.id });
+    if (!contract) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to rate this contract' });
+    }
+
     const existingRatingIndex = contractor.ratings.findIndex(
       r => r.contractId && r.contractId.toString() === contractId.toString()
     );

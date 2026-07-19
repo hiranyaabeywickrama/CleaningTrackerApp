@@ -36,4 +36,6 @@ WorkerAssignmentSchema.pre('save', function (next) {
   next();
 });
 
+WorkerAssignmentSchema.index({ contractId: 1, workerId: 1 }, { unique: true });
+
 module.exports = mongoose.model('WorkerAssignment', WorkerAssignmentSchema);

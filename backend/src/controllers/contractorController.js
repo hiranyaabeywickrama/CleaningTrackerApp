@@ -620,6 +620,14 @@ exports.postFreelanceJob = async (req, res) => {
 
     const actualTargetType = targetType === 'crew' ? 'crew' : 'public';
     const actualPricePerHour = actualTargetType === 'crew' ? (parseFloat(pricePerHour) || 25) : parseFloat(pricePerHour);
+    const parsedHours = parseFloat(hours);
+
+    if (actualPricePerHour < 0) {
+      return res.status(400).json({ success: false, message: 'Price per hour cannot be negative' });
+    }
+    if (parsedHours < 0) {
+      return res.status(400).json({ success: false, message: 'Hours cannot be negative' });
+    }
 
     if (!category || !location || !hours || actualPricePerHour === undefined || isNaN(actualPricePerHour) || !date || !time || !description) {
       return res.status(400).json({ success: false, message: 'Please provide all freelance job details' });

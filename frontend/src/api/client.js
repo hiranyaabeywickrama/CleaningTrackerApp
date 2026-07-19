@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Platform, NativeModules } from 'react-native';
+import { Platform, NativeModules, DeviceEventEmitter } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -213,6 +213,8 @@ apiClient.interceptors.response.use(
 
       if (Platform.OS === 'web') {
         window.location.reload();
+      } else {
+        DeviceEventEmitter.emit('session_expired');
       }
     }
     return Promise.reject(error);

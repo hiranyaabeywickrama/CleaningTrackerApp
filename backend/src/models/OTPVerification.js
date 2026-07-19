@@ -25,6 +25,10 @@ const OTPVerificationSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  verified: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now,
