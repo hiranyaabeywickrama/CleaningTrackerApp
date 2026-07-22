@@ -4428,6 +4428,8 @@ const ContractorDashboard = ({ user, onLogout }) => {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
       {/* Contractor Edit Profile Modal */}
       <Modal
         visible={showEditProfile}
