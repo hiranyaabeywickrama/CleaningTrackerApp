@@ -4,10 +4,13 @@ const emailService = require('../services/emailService');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 
-// Helper: generate JWT token
-const generateToken = (id) => {
+// Helper: generate JWT token (includes role for socket.io auth)
+const generateToken = (id, role) => {
+  if (!env.jwtSecret) {
+    console.warn('[SECURITY] JWT_SECRET not set — using fallback. Set JWT_SECRET in .env for production!');
+  }
   return jwt.sign(
-    { id },
+    { id, role },
     env.jwtSecret || 'super_secret_cleaning_tracker_key_2026',
     { expiresIn: env.jwtExpiresIn || '7d' }
   );
@@ -54,7 +57,7 @@ exports.requestOtp = async (req, res) => {
       if (existingUser.role !== requestedRole) {
         return res.status(400).json({
           success: false,
-          message: 'please create account this email'
+          message: 'An account with this email already exists under a different role. Please sign in with the correct role.'
         });
       }
       // Existing user login — no extra fields needed, just email + OTP
@@ -63,7 +66,7 @@ exports.requestOtp = async (req, res) => {
       if (!name) {
         return res.status(404).json({
           success: false,
-          message: 'please create account this email'
+          message: 'No account found with this email. Please register first.'
         });
       }
 
@@ -137,13 +140,19 @@ exports.requestOtp = async (req, res) => {
         emailResult = await emailService.sendOtpEmail(cleanEmail, rawOtp, requestedRole, isLogin);
       } catch (emailErr) {
         console.error('OTP email sending failed:', emailErr.message);
-        console.log('[AUTO-FALLBACK] Email failed. Providing verification Code directly: ' + rawOtp);
-        return res.status(200).json({
-          success: true,
-          message: 'Email sending failed. Test mode fallback activated: use code ' + rawOtp,
-          isNewUser: !existingUser,
-          sentTo: cleanEmail,
-          devOtpCode: rawOtp
+        if (process.env.ALLOW_TEST_OTP === 'true') {
+          console.log('[AUTO-FALLBACK] Email failed. Test Code: ' + rawOtp);
+          return res.status(200).json({
+            success: true,
+            message: 'Email sending failed but test mode is active. Use the code shown in server logs.',
+            isNewUser: !existingUser,
+            sentTo: cleanEmail,
+            devOtpCode: rawOtp
+          });
+        }
+        return res.status(503).json({
+          success: false,
+          message: 'Unable to send verification email. Please try again later or contact support.'
         });
       }
     }
@@ -291,7 +300,7 @@ exports.verifyOtp = async (req, res) => {
     res.status(200).json({
       success: true,
       isNewUser,
-      token: generateToken(user._id),
+      token: generateToken(user._id, user.role),
       user: {
         id: user._id,
         name: user.name,

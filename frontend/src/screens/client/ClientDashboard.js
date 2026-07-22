@@ -71,19 +71,11 @@ const ClientDashboard = ({ user, onLogout }) => {
   // Android Hardware Back Button Handler
   useEffect(() => {
     const onBackPress = () => {
-      if (activeTab === 'network' && selectedContractor) {
-        setSelectedContractor(null);
-        return true;
-      }
-      if (activeTab === 'network' && selectedRosterWorker) {
-        setSelectedRosterWorker(null);
-        return true;
-      }
-      if (activeTab !== 'projects' && tabHistory.length > 1) {
+      if (activeTab !== 'home' && tabHistory.length > 1) {
         setTabHistory(prev => {
           const hist = [...prev];
           hist.pop();
-          setActiveTab(hist[hist.length - 1] || 'projects');
+          _setActiveTab(hist[hist.length - 1] || 'home');
           return hist;
         });
         return true;
@@ -92,7 +84,7 @@ const ClientDashboard = ({ user, onLogout }) => {
     };
     const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => backHandler.remove();
-  }, [activeTab, tabHistory, selectedContractor, selectedRosterWorker]);
+  }, [activeTab, tabHistory]);
 
   // Home states
   const [selectedCategory, setSelectedCategory] = useState(null);

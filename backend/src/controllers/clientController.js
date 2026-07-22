@@ -219,6 +219,10 @@ exports.rateContractor = async (req, res) => {
       return res.status(403).json({ success: false, message: 'You are not authorized to rate this contract' });
     }
 
+    if (contract.status !== 'completed') {
+      return res.status(400).json({ success: false, message: 'You can only review a contractor after the project is completed' });
+    }
+
     const existingRatingIndex = contractor.ratings.findIndex(
       r => r.contractId && r.contractId.toString() === contractId.toString()
     );

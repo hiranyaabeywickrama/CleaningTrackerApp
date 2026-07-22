@@ -133,9 +133,8 @@ const LoginScreen = ({ onLoginSuccess, navigation, route }) => {
   // Handle hardware back press (Android)
   useEffect(() => {
     const backAction = () => {
-      
-
-      if (isOtpRole && otpStep === 2) {
+      const isOtp = selectedRole === 'worker' || selectedRole === 'contractor' || selectedRole === 'client';
+      if (isOtp && otpStep === 2) {
         setOtpStep(1);
         setOtpCode('');
         return true; // prevent default behavior
@@ -149,17 +148,7 @@ const LoginScreen = ({ onLoginSuccess, navigation, route }) => {
 
   const scrollRef = useRef(null);
 
-  useEffect(() => {
-    const listener = (markHandled) => {
-      try {
-        if (scrollRef.current && scrollRef.current.scrollTo) {
-          scrollRef.current.scrollTo({ y: 0, animated: true });
-          markHandled();
-        }
-      } catch (e) {}
-    };
-    
-  }, []);
+
 
   // Resend cooldown
   useEffect(() => {

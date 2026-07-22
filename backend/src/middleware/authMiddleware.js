@@ -23,16 +23,15 @@ const protect = async (req, res, next) => {
         return res.status(401).json({ success: false, message: 'Not authorized, user not found' });
       }
 
-      next();
+      return next();
     } catch (error) {
       console.error('JWT Verification Error:', error.message);
       return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
     }
   }
 
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'Not authorized, no token provided' });
-  }
+  // No authorization header at all
+  return res.status(401).json({ success: false, message: 'Not authorized, no token provided' });
 };
 
 // Grant access to specific roles

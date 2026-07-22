@@ -401,14 +401,14 @@ exports.endAssignmentJob = async (req, res) => {
         // Notify Client if applicable
         if (updatedContract && updatedContract.clientRequestId) {
           const ClientRequest = require('../models/ClientRequest');
-          const clientReq = await ClientRequest.findByIdAndUpdate(updatedContract.clientRequestId, { status: 'completed' }, { new: true }).populate('clientId');
+          const clientReq = await ClientRequest.findByIdAndUpdate(updatedContract.clientRequestId, { status: 'completed' }, { new: true }).populate('client');
           
-          if (clientReq && clientReq.clientId) {
+          if (clientReq && clientReq.client) {
             await notifyUser(io, {
-              userId: clientReq.clientId._id,
+              userId: clientReq.client._id,
               type: 'contract_completed',
               title: 'Service Completed',
-              message: `Your requested cleaning service at ${clientReq.location?.address} has been completed.`
+              message: `Your requested cleaning service has been completed.`
             });
           }
         }

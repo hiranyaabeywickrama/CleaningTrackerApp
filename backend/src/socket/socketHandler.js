@@ -7,7 +7,9 @@ module.exports = (io) => {
   io.on('connection', (socket) => {
     console.log(`Socket client connected: ${socket.id}`);
 
-    const { role, userId } = socket.handshake.auth || {};
+    // Use JWT-verified role and userId (set by server middleware), NOT client-provided values
+    const role = socket.role;
+    const userId = socket.userId;
 
     if (role !== 'contractor' && role !== 'worker') {
       console.warn(`Socket connection rejected: role ${role} not permitted`);

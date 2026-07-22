@@ -131,13 +131,13 @@ exports.createContract = async (req, res) => {
       role: 'worker'
     });
 
-    const unavailableWorkers = requestedWorkers.filter(w => !['available', 'active_shift'].includes(w.status));
+    const unavailableWorkers = requestedWorkers.filter(w => ['cleaning', 'on_job'].includes(w.status));
     
     if (unavailableWorkers.length > 0) {
       const details = unavailableWorkers.map(w => `${w.name} (${w.status.toUpperCase().replace('_', ' ')})`).join(', ');
       return res.status(400).json({
         success: false,
-        message: `The following selected workers are unavailable: ${details}. Please select available/online cleaners.`
+        message: `The following selected workers are currently on a job: ${details}. Please select available cleaners.`
       });
     }
 
@@ -195,8 +195,8 @@ exports.createContract = async (req, res) => {
         type: 'contract_request',
         title: isUrgent ? 'Urgent Contract Request' : 'New Contract Request',
         message: isUrgent 
-          ? `You have 10 minutes to respond to an urgent cleaning contract at ${address}.`
-          : `You have 2 hours to respond to a cleaning contract at ${address}.`,
+          ? `You have 5 minutes to respond to an urgent cleaning contract at ${address}.`
+          : `You have 24 hours to respond to a cleaning contract at ${address}.`,
         data: {
           assignmentId: assignment._id,
           contractId: contract._id,
@@ -215,7 +215,7 @@ exports.createContract = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Contract successfully drafted. Requests dispatched to selected workers with a ${isUrgent ? '5-minute' : '2-hour'} response deadline.`,
+      message: `Contract successfully drafted. Requests dispatched to selected workers with a ${isUrgent ? '5-minute' : '24-hour'} response deadline.`,
       contract,
       assignments
     });
@@ -239,52 +239,63 @@ exports.getContracts = async (req, res) => {
       .populate('packageId')
       .sort('-createdAt');
 
-    // Fetch and dynamically update/append assignments for each contract
-    const contractsWithAssignments = [];
-    for (let contract of contracts) {
-      // Auto-expire assignments where response deadline has passed and it is still pending
-      const expiredAssignments = await WorkerAssignment.find({
-        contractId: contract._id,
-        response: 'pending',
-        responseDeadline: { $lt: now }
-      }).populate('workerId');
+    const contractIds = contracts.map(c => c._id);
 
-      for (let exp of expiredAssignments) {
-        exp.response = 'expired';
-        await exp.save();
-        
-        const io = req.app.get('socketio');
+    // Batch: auto-expire all pending assignments past deadline for this contractor's contracts
+    const expiredAssignments = await WorkerAssignment.find({
+      contractId: { $in: contractIds },
+      response: 'pending',
+      responseDeadline: { $lt: now }
+    }).populate('workerId', 'name');
+
+    if (expiredAssignments.length > 0) {
+      await WorkerAssignment.updateMany(
+        { _id: { $in: expiredAssignments.map(e => e._id) } },
+        { response: 'expired' }
+      );
+
+      const io = req.app.get('socketio');
+      for (const exp of expiredAssignments) {
         await notifyUser(io, {
-          userId: contract.contractorId,
+          userId: req.user.id,
           type: 'contract_expired',
           title: 'Worker Response Timeout',
-          message: `Worker ${exp.workerId?.name || 'A crew member'} did not respond to the contract within 1 day. Please assign this job to another crew member.`,
-          data: { contractId: contract._id, workerId: exp.workerId?._id },
+          message: `Worker ${exp.workerId?.name || 'A crew member'} did not respond to the contract within the deadline. Please assign this job to another crew member.`,
+          data: { contractId: exp.contractId, workerId: exp.workerId?._id },
           socketEvent: 'contractor_notification'
         });
       }
+    }
 
-      const assignments = await WorkerAssignment.find({ contractId: contract._id })
-        .populate('workerId', 'name email phoneNumber status');
+    // Batch: fetch ALL assignments for all contracts at once
+    const allAssignments = await WorkerAssignment.find({ contractId: { $in: contractIds } })
+      .populate('workerId', 'name email phoneNumber status');
 
-      contractsWithAssignments.push({
-        ...contract.toObject(),
-        assignments: assignments.map(a => ({
-          _id: a._id,
-          workerId: a.workerId,
-          response: a.response,
-          responseDeadline: a.responseDeadline,
-          workerStatus: a.workerStatus,
-          checkInTime: a.checkInTime,
-          checkOutTime: a.checkOutTime,
-          actualWorkedMinutes: a.actualWorkedMinutes,
-          totalViolations: a.totalViolations,
-          timeSpentOutsideMinutes: a.timeSpentOutsideMinutes,
-          gpsAttendanceSummary: a.gpsAttendanceSummary,
-          createdAt: a.createdAt
-        }))
+    // Group assignments by contractId
+    const assignmentsByContract = {};
+    for (const a of allAssignments) {
+      const cid = a.contractId.toString();
+      if (!assignmentsByContract[cid]) assignmentsByContract[cid] = [];
+      assignmentsByContract[cid].push({
+        _id: a._id,
+        workerId: a.workerId,
+        response: a.response,
+        responseDeadline: a.responseDeadline,
+        workerStatus: a.workerStatus,
+        checkInTime: a.checkInTime,
+        checkOutTime: a.checkOutTime,
+        actualWorkedMinutes: a.actualWorkedMinutes,
+        totalViolations: a.totalViolations,
+        timeSpentOutsideMinutes: a.timeSpentOutsideMinutes,
+        gpsAttendanceSummary: a.gpsAttendanceSummary,
+        createdAt: a.createdAt
       });
     }
+
+    const contractsWithAssignments = contracts.map(contract => ({
+      ...contract.toObject(),
+      assignments: assignmentsByContract[contract._id.toString()] || []
+    }));
 
     res.status(200).json({ success: true, count: contractsWithAssignments.length, contracts: contractsWithAssignments });
   } catch (error) {

@@ -1,10 +1,13 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-// Helper: generate JWT token
-const generateToken = (id) => {
+// Helper: generate JWT token (includes role for socket.io auth)
+const generateToken = (id, role) => {
+  if (!process.env.JWT_SECRET) {
+    console.warn('[SECURITY] JWT_SECRET not set in environment — using fallback. Set JWT_SECRET in .env for production!');
+  }
   return jwt.sign(
-    { id },
+    { id, role },
     process.env.JWT_SECRET || 'super_secret_cleaning_tracker_key_2026',
     { expiresIn: '7d' }
   );
@@ -49,7 +52,7 @@ exports.login = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      token: generateToken(user._id),
+      token: generateToken(user._id, user.role),
       user: {
         id: user._id,
         name: user.name,
