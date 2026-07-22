@@ -3532,98 +3532,77 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   TAB 1: PROJECTS (Current Contracts list)
                   ────────────────────────────────────────────────────────────────── */}
               {activeTab === 'projects' && (
-            <View>
-              {(() => {
-                const currentPkgName = packages.find(p => p._id === (profileUser?.packageId?._id || profileUser?.packageId))?.name || subscription?.packageName || 'Basic';
-                const limit = currentPkgName === 'Premium' ? 'Unlimited' : 5;
-                return (
-                  <View>
-                    <Text style={styles.rosterTitle}>Crew Members Roster ({rosterWorkers.length} / {limit})</Text>
-
-
-                    {/* Add Crew search */}
-                    <View style={styles.addCrewSection}>
-                      <Text style={styles.addCrewTitle}>Hire/Add Crew Member (by email/name)</Text>
-                      <View style={styles.addCrewRow}>
-                        <TextInput
-                          style={styles.addCrewInput}
-                          value={searchWorkerEmail}
-                          onChangeText={handleGlobalSearchWorkers}
-                          placeholder="Enter worker's name or email"
-                          placeholderTextColor="#94A3B8"
-                        />
-                      </View>
-
-                      {foundWorkerList.map(w => (
-                        <View key={w._id} style={styles.searchResultCard}>
-                          <View>
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>{w.name}</Text>
-                            <Text style={{ fontSize: 11, color: '#64748B' }}>{w.email}</Text>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.approveBtn}
-                            onPress={() => handleAddWorkerToRoster(w._id)}
-                          >
-                            <Text style={styles.approveBtnText}>Add Crew</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ))}
+                <View style={{ paddingBottom: 40 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
+                      <Text style={styles.rosterTitle}>Dispatched Projects ({contracts.length})</Text>
+                      <Text style={styles.sectionSubtitle}>Manage ongoing, pending, and completed cleaning projects</Text>
                     </View>
+                    <TouchableOpacity
+                      style={[styles.confirmAssignBtn, { paddingVertical: 8, paddingHorizontal: 14 }]}
+                      onPress={() => fadeTransition(() => { setSelectedPackage(null); navigateToTab('newContract'); })}
+                    >
+                      <Text style={[styles.confirmAssignBtnText, { fontSize: 12 }]}>+ Draft Project</Text>
+                    </TouchableOpacity>
                   </View>
-                );
-              })()}
 
-              {/* Your Crew members Section */}
-              <Text style={styles.sectionTitle}>Your Crew Members</Text>
-              {rosterWorkers.length === 0 ? (
-                <View style={[styles.emptyCard, { marginBottom: 20 }]}>
-                  <Text style={styles.emptyIcon}>👥</Text>
-                  <Text style={styles.emptyText}>No crew members added yet.</Text>
-                  <TouchableOpacity
-                    style={styles.emptyLinkBtn}
-                    onPress={() => fadeTransition(() => navigateToTab('roster'))}
-                  >
-                    <Text style={styles.emptyLinkText}>Build Your Crew Roster Now ➔</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.crewGridContainer}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingBottom: 10 }}>
-                    {rosterWorkers.map((worker) => (
+                  {contracts.length === 0 ? (
+                    <View style={styles.emptyCard}>
+                      <Text style={styles.emptyIcon}>📁</Text>
+                      <Text style={styles.emptyText}>No dispatched projects or contracts found.</Text>
                       <TouchableOpacity
-                        key={worker._id}
-                        style={styles.homeCrewCard}
-                        onPress={() => {
-                          setSelectedRosterWorker(worker);
-                          fetchWorkerProfileData(worker._id);
-                          fadeTransition(() => navigateToTab('roster'));
-                        }}
-                        activeOpacity={0.8}
+                        style={styles.emptyLinkBtn}
+                        onPress={() => fadeTransition(() => { setSelectedPackage(null); navigateToTab('newContract'); })}
                       >
-                        <View style={styles.homeCrewAvatarContainer}>
-                          <Text style={styles.homeCrewAvatarIcon}>👤</Text>
-                          <View style={[
-                            styles.homeCrewStatusDot,
-                            {
-                              backgroundColor: ['available', 'active_shift'].includes(worker.status)
-                                ? '#10B981' // Green
-                                : ['busy', 'cleaning', 'on_job'].includes(worker.status)
-                                ? '#F59E0B' // Amber
-                                : '#64748B' // Grey
-                            }
-                          ]} />
-                        </View>
-                        <Text style={styles.homeCrewName} numberOfLines={1}>{worker.name}</Text>
-                        <Text style={styles.homeCrewId} numberOfLines={1}>
-                          {worker.workerIdNumber || `ID: ${worker._id.slice(-6)}`}
-                        </Text>
+                        <Text style={styles.emptyLinkText}>+ Draft New Project Dispatch ➔</Text>
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    </View>
+                  ) : (
+                    contracts.map(c => {
+                      const status = getStatusConfig(c.status);
+                      const assignedCount = c.workers?.length || 0;
+                      return (
+                        <View key={c._id} style={styles.acceptedBidCard}>
+                          <View style={styles.acceptedBidHeader}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.acceptedBidTitle}>👤 Client: {c.clientName}</Text>
+                              <Text style={styles.acceptedBidSub}>
+                                📅 Date: {new Date(c.schedule?.date || c.startTime).toLocaleDateString()} at {c.schedule?.startTime || '09:00 AM'} ({formatDuration(c.schedule?.durationMinutes || 120)})
+                              </Text>
+                              <Text style={styles.acceptedBidLoc}>📍 Site: {c.location?.address || 'Site Location'}</Text>
+                              {c.pricePerHour && (
+                                <Text style={[styles.acceptedBidLoc, { fontWeight: '700', color: '#10B981', marginTop: 2 }]}>
+                                  💵 Rate: ${c.pricePerHour}/hr
+                                </Text>
+                              )}
+                            </View>
+                            <View style={[styles.assignCountBadge, { backgroundColor: status.bgColor }]}>
+                              <Text style={[styles.assignCountText, { color: status.color }]}>
+                                {status.label}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.acceptedBidDetails}>
+                            {c.notes ? <Text style={styles.acceptedBidDesc}>{c.notes}</Text> : null}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                              <Text style={styles.assignedCrewTitle}>Assigned Crew: {assignedCount} member(s)</Text>
+                              {(c.status === 'active' || c.status === 'pending') && (
+                                <TouchableOpacity
+                                  style={{ paddingVertical: 6, paddingHorizontal: 12, backgroundColor: Colors.primary + '15', borderRadius: 8 }}
+                                  onPress={() => fadeTransition(() => { setSelectedContractForMap(c); navigateToTab('gps'); })}
+                                >
+                                  <Text style={{ fontSize: 12, fontWeight: '800', color: Colors.primary }}>🛰️ Live GPS ➔</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
                 </View>
               )}
-            </View>
-          )}
 
           {/* ──────────────────────────────────────────────────────────────────
               TAB 2: NEW CONTRACT (Package selection OR Page Forms)
