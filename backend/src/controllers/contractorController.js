@@ -535,15 +535,6 @@ exports.getWorkerRosterProfile = async (req, res) => {
     const allJobs = await Job.find({ assignedWorker: worker._id }).lean();
     let jobs = allJobs.filter(j => j.contractor?.toString() === req.user.id.toString() || j.status === 'completed');
 
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      jobs = jobs.filter(j => {
-        if (!j.startTime) return true;
-        const d = new Date(j.startTime);
-        return d >= start && d <= end;
-      });
-    }
     const assignmentFilter = {
       workerId: worker._id,
       response: { $in: ['accepted', 'completed'] }
@@ -554,22 +545,16 @@ exports.getWorkerRosterProfile = async (req, res) => {
     
     const formattedAssignments = assignments
       .filter(a => a.contractId && (a.contractId.contractorId?.toString() === req.user.id.toString() || a.workerStatus === 'Completed' || a.contractId.status === 'completed'))
-      .filter(a => {
-        if (!startDate || !endDate) return true;
-        const sDate = a.contractId.schedule?.date;
-        if (!sDate) return false;
-        const d = new Date(sDate);
-        return d >= new Date(startDate) && d <= new Date(endDate);
-      })
       .map(a => {
         const c = a.contractId;
         const associatedJob = jobs.find(j => j.contractId && j.contractId.toString() === c._id.toString() && j.assignedWorker.toString() === worker._id.toString());
         const jobHours = associatedJob ? associatedJob.totalHoursWorked : 0;
+        const isDone = a.workerStatus === 'Completed' || c.status === 'completed';
 
         return {
           _id: a._id,
           contractId: c._id,
-          status: a.workerStatus === 'Completed' ? 'completed' : c.status,
+          status: isDone ? 'completed' : c.status,
           workerStatus: a.workerStatus,
           customerName: c.clientName,
           address: c.location?.address,
@@ -584,9 +569,21 @@ exports.getWorkerRosterProfile = async (req, res) => {
 
     const allProjects = [...filteredJobs, ...formattedAssignments].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
 
+    // Stats filtered by period if startDate & endDate provided
+    let periodProjects = allProjects;
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      periodProjects = allProjects.filter(p => {
+        if (!p.startTime) return true;
+        const d = new Date(p.startTime);
+        return d >= start && d <= end;
+      });
+    }
+
     let totalHours = 0;
-    const completedJobs = allProjects.filter(j => j.status === 'completed' || j.workerStatus === 'Completed');
-    completedJobs.forEach(job => {
+    const completedJobsInPeriod = periodProjects.filter(j => j.status === 'completed' || j.workerStatus === 'Completed');
+    completedJobsInPeriod.forEach(job => {
       totalHours += job.totalHoursWorked || 0;
     });
 

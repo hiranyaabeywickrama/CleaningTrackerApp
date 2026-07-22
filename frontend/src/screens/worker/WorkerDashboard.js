@@ -1083,35 +1083,56 @@ const WorkerDashboard = ({ user, onLogout, navigation }) => {
                 {/* 3. Covered Projects (Separated) */}
                 {contractorDetailTab === 'completed' && (
                 <View style={{ marginBottom: 20 }}>
-                  <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 12, color: Colors.primary, fontWeight: '800' }]}>📁 Covered Projects ({
-                    contractorProjects.filter(j => j.status === 'completed').length
-                  })</Text>
                   {(() => {
-                    const completedJobsList = contractorProjects.filter(j => j.status === 'completed');
-                    if (completedJobsList.length === 0) {
-                      return <Text style={{ color: '#64748B', fontSize: 12, paddingLeft: 8 }}>No covered projects found.</Text>;
-                    }
-                    return completedJobsList.map(job => {
-                      const status = getStatusConfig(job.status);
-                      return (
-                        <View key={job._id + "_cov"} style={styles.jobItemRow}>
-                          <View style={styles.jobItemHeader}>
-                            <View style={styles.addressCol}>
-                              <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 13, marginBottom: 2 }} numberOfLines={1}>
-                                {job.contractor?.companyName || job.contractor?.name || job.clientName || 'Private Customer'}
-                              </Text>
-                              <Text style={styles.addressText} numberOfLines={1}>📍 {job.address}</Text>
-                              <Text style={styles.timeRangeText}>
-                                📅 {new Date(job.startTime).toLocaleDateString()}
-                              </Text>
-                            </View>
-                            <View style={[styles.statusBadge, { backgroundColor: status.bgColor }]}>
-                              <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
-                            </View>
-                          </View>
-                        </View>
-                      );
+                    const completedFromContractorProjects = contractorProjects.filter(j => j.status === 'completed' || j.workerStatus === 'Completed' || j.status === 'finished');
+                    const completedFromGeneralJobs = jobs.filter(j => {
+                      const matchContractor = selectedContractor && j.contractor && (j.contractor._id || j.contractor).toString() === selectedContractor._id.toString();
+                      return matchContractor && (j.status === 'completed' || j.workerStatus === 'Completed' || j.status === 'finished');
                     });
+
+                    const completedMap = new Map();
+                    completedFromContractorProjects.forEach(j => {
+                      const key = (j._id || j.contractId)?.toString();
+                      if (key) completedMap.set(key, j);
+                    });
+                    completedFromGeneralJobs.forEach(j => {
+                      const key = (j._id || j.contractId)?.toString();
+                      if (key && !completedMap.has(key)) completedMap.set(key, j);
+                    });
+
+                    const completedJobsList = Array.from(completedMap.values());
+                    return (
+                      <>
+                        <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 12, color: Colors.primary, fontWeight: '800' }]}>
+                          📁 Covered Projects ({completedJobsList.length})
+                        </Text>
+                        {completedJobsList.length === 0 ? (
+                          <Text style={{ color: '#64748B', fontSize: 12, paddingLeft: 8 }}>No covered projects found.</Text>
+                        ) : (
+                          completedJobsList.map(job => {
+                            const status = getStatusConfig(job.status);
+                            return (
+                              <View key={(job._id || job.contractId) + "_cov"} style={styles.jobItemRow}>
+                                <View style={styles.jobItemHeader}>
+                                  <View style={styles.addressCol}>
+                                    <Text style={{ fontWeight: '800', color: Colors.secondary, fontSize: 13, marginBottom: 2 }} numberOfLines={1}>
+                                      {job.customerName || job.contractor?.companyName || job.contractor?.name || job.clientName || 'Private Customer'}
+                                    </Text>
+                                    <Text style={styles.addressText} numberOfLines={1}>📍 {job.address}</Text>
+                                    <Text style={styles.timeRangeText}>
+                                      📅 {new Date(job.startTime).toLocaleDateString()}
+                                    </Text>
+                                  </View>
+                                  <View style={[styles.statusBadge, { backgroundColor: status.bgColor }]}>
+                                    <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
+                                  </View>
+                                </View>
+                              </View>
+                            );
+                          })
+                        )}
+                      </>
+                    );
                   })()}
                 </View>
                 )}

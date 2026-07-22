@@ -1937,15 +1937,36 @@ const ContractorDashboard = ({ user, onLogout }) => {
 
     if (selectedRosterWorker) {
       const stats = workerProfileStats || { totalJobsCount: 0, completedJobsCount: 0, totalHours: 0, totalPayout: 0, hourlyRate: 25 };
-      const completedJobs = workerProfileJobs.filter(j => j.status === 'completed');
+      const completedJobsFromProfile = workerProfileJobs.filter(j => j.status === 'completed' || j.workerStatus === 'Completed');
       
-      const isProjectCompletelyDone = (contract) => {
-        if (!contract.assignments || contract.assignments.length === 0) return false;
-        const acceptedAssignments = contract.assignments.filter(a => a.response === 'accepted');
-        if (acceptedAssignments.length === 0) return false;
-        return acceptedAssignments.every(a => a.workerStatus === 'Completed');
-      };
-      
+      const handedOverProjectsMapped = contracts.filter(c => {
+        if (c.status !== 'completed') return false;
+        return c.assignments?.some(assign => {
+          const workerId = assign.workerId?._id || assign.workerId;
+          return workerId && workerId.toString() === selectedRosterWorker._id.toString();
+        });
+      }).map(c => ({
+        _id: c._id,
+        customerName: c.clientName,
+        address: c.location?.address,
+        startTime: c.schedule?.date,
+        status: 'completed',
+        workerStatus: 'Completed'
+      }));
+
+      const completedJobsMap = new Map();
+      completedJobsFromProfile.forEach(j => {
+        const key = (j._id || j.contractId)?.toString();
+        if (key) completedJobsMap.set(key, j);
+      });
+      handedOverProjectsMapped.forEach(j => {
+        const key = (j._id || j.contractId)?.toString();
+        if (key && !completedJobsMap.has(key)) {
+          completedJobsMap.set(key, j);
+        }
+      });
+      const completedJobs = Array.from(completedJobsMap.values());
+
       // Filter ongoing projects (active status) assigned to this worker
       const workerOngoingProjects = contracts.filter(c => {
         const isPastDate = c.schedule?.date && new Date(c.schedule.date).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
@@ -1957,15 +1978,6 @@ const ContractorDashboard = ({ user, onLogout }) => {
           const workerId = assign.workerId?._id || assign.workerId;
           return workerId && workerId.toString() === selectedRosterWorker._id.toString() &&
                  (assign.response === 'pending' || assign.response === 'accepted');
-        });
-      });
-
-      // Filter handed over projects (completed status) assigned to this worker
-      const handedOverProjects = contracts.filter(c => {
-        if (c.status !== 'completed') return false;
-        return c.assignments?.some(assign => {
-          const workerId = assign.workerId?._id || assign.workerId;
-          return workerId && workerId.toString() === selectedRosterWorker._id.toString();
         });
       });
 
