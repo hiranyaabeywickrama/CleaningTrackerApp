@@ -78,6 +78,7 @@ const getCurrentTime24 = () => {
 };
 
 const ContractorDashboard = ({ user, onLogout }) => {
+  const [profileUser, setProfileUser] = useState(user);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [profileName, setProfileName] = useState(user?.name || '');
   const [profilePhone, setProfilePhone] = useState(user?.phoneNumber || '');
@@ -85,6 +86,10 @@ const ContractorDashboard = ({ user, onLogout }) => {
   const [profileLocations, setProfileLocations] = useState(user?.locations?.join(', ') || '');
   const [profileTags, setProfileTags] = useState(user?.tags?.join(', ') || '');
   const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  useEffect(() => {
+    setProfileUser(user);
+  }, [user]);
 
   useEffect(() => {
     if (profileUser) {
