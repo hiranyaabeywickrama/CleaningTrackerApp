@@ -19,7 +19,7 @@ const getContractors = asyncHandler(async (req, res) => {
 
   const result = contractors.map((c) => {
     const contractorContracts = contracts.filter(
-      (ct) => ct.contractorId.toString() === c._id.toString()
+      (ct) => (ct.contractorId?._id || ct.contractorId)?.toString() === c._id.toString()
     );
     const activeContracts = contractorContracts.filter((ct) =>
       ['pending', 'active'].includes(ct.status)
@@ -56,7 +56,7 @@ const getWorkers = asyncHandler(async (req, res) => {
 
   const result = workers.map((w) => {
     const workerAssignments = assignments.filter(
-      (a) => a.workerId.toString() === w._id.toString()
+      (a) => a.workerId && (a.workerId._id || a.workerId).toString() === w._id.toString()
     );
     const accepted = workerAssignments.filter((a) => a.response === 'accepted').length;
 
