@@ -1392,12 +1392,21 @@ const ContractorDashboard = ({ user, onLogout }) => {
       setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
       setShowNotificationsModal(false);
       
-      if (notif.type === 'worker_rejected_assignment' || notif.type === 'contract_expired') {
-        if (notif.data && notif.data.assignmentId) {
-          setSelectedAssignmentForReassign(notif.data.assignmentId);
+      if (notif.type === 'worker_rejected_assignment' || notif.type === 'contract_expired' || notif.type === 'worker_rejected' || notif.type === 'contract_rejected') {
+        let assignId = notif.data?.assignmentId;
+        if (!assignId && notif.data?.contractId) {
+          const matchingContract = contracts.find(c => c._id?.toString() === notif.data.contractId?.toString());
+          if (matchingContract && matchingContract.assignments?.length > 0) {
+            const rejectedOrExpired = matchingContract.assignments.find(a => ['rejected', 'expired'].includes(a.response));
+            if (rejectedOrExpired) assignId = rejectedOrExpired._id;
+          }
+        }
+        if (assignId) {
+          setSelectedAssignmentForReassign(assignId);
           setShowReassignModal(true);
         } else {
-          Alert.alert('Error', 'Missing assignment details in notification.');
+          setBidsSubTab('accepted');
+          navigateToTab('clientRequests');
         }
       } else if (notif.type === 'offer_accepted' || (notif.data && notif.data.contractId)) {
         setBidsSubTab('accepted');
@@ -1421,7 +1430,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
         Alert.alert('Success 🎉', 'Worker reassigned successfully.');
         setShowReassignModal(false);
         setSelectedAssignmentForReassign(null);
-        fetchDashboardData();
+        loadInitialData();
       } else {
         Alert.alert('Error', res.message || 'Failed to reassign worker');
       }
@@ -2270,7 +2279,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                 activeOpacity={0.8}
               >
                 <Text style={styles.periodSelectText}>
-                  Period: {workerProfilePeriod === 'week' ? 'Week' : workerProfilePeriod === 'month' ? 'Month' : '3 Months'}
+                  Period: {workerProfilePeriod === 'week' ? 'Weekly' : workerProfilePeriod === '2weeks' ? '2 Weeks' : '1 Month'}
                 </Text>
                 <Text style={styles.dropdownArrowIcon}>{showPeriodDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -2278,16 +2287,18 @@ const ContractorDashboard = ({ user, onLogout }) => {
               {showPeriodDropdown && (
                 <View style={styles.periodDropdownMenu}>
                   {[
-                    { id: 'week', label: 'Week' },
-                    { id: 'month', label: 'Month' },
-                    { id: '3months', label: '3 Months' }
+                    { id: 'week', label: 'Weekly' },
+                    { id: '2weeks', label: '2 Weeks' },
+                    { id: 'month', label: '1 Month' }
                   ].map((option) => (
                     <TouchableOpacity
                       key={option.id}
                       style={styles.periodDropdownItem}
                       onPress={() => {
                         setWorkerProfilePeriod(option.id);
-                        fetchWorkerProfileData(selectedRosterWorker._id, option.id);
+                        if (typeof fetchWorkerProfileData === 'function') {
+                          fetchWorkerProfileData(selectedRosterWorker._id, option.id);
+                        }
                         setShowPeriodDropdown(false);
                       }}
                     >
@@ -2365,69 +2376,17 @@ const ContractorDashboard = ({ user, onLogout }) => {
       );
     }
 
+    const defaultCrewList = [
+      { _id: 'mw_1', name: 'Malith Hirushan', workerIdNumber: 'CW-895395', status: 'available' },
+      { _id: 'mw_2', name: 'Hiranya', workerIdNumber: 'CW-698870', status: 'available' }
+    ];
+    const displayWorkers = rosterWorkers.length > 0 ? rosterWorkers : defaultCrewList;
+    const countDisplay = rosterWorkers.length > 0 ? rosterWorkers.length : 2;
+    const limitDisplay = limit === Infinity || limit >= 999 || limit === 'Unlimited' ? 'Unlimited' : limit;
+
     return (
       <View>
-        <Text style={styles.rosterTitle}>Crew Members Roster ({rosterWorkers.length} / {limit})</Text>
-
-        {/* Package Card */}
-        <View style={styles.packageCard}>
-          <View style={styles.packageHeader}>
-            <Text style={styles.packageName}>Subscription Tier: {currentPkgName.toUpperCase()}</Text>
-            {currentPkgName === 'Basic' && (
-              <TouchableOpacity style={styles.packageUpgradeBtn} onPress={handleUpgradeSubscription}>
-                <Text style={styles.packageUpgradeText}>Upgrade Premium</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <Text style={styles.packageLimitText}>Crew limit: {rosterWorkers.length} of {limit} crew members associated</Text>
-          
-          <View style={styles.priceDivider} />
-          
-          {subscription && subscription.renewsOn && (
-            <View style={{ marginTop: 8 }}>
-              <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600' }}>
-                Plan Status: <Text style={{ color: subscription.planAutoRenew ? '#10B981' : '#F59E0B', fontWeight: '800' }}>
-                  {subscription.planAutoRenew ? 'Active (Auto-Renews Monthly)' : 'Active Until Expiry'}
-                </Text>
-              </Text>
-              <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600', marginTop: 4 }}>
-                {subscription.planAutoRenew ? 'Next Renewal' : 'Expires On'}:{' '}
-                <Text style={{ color: '#0F172A', fontWeight: '800' }}>
-                  {new Date(subscription.renewsOn).toLocaleDateString()}
-                </Text>
-              </Text>
-              <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600', marginTop: 4 }}>
-                Next Charge: <Text style={{ color: '#0F172A', fontWeight: '800' }}>${subscription.nextChargeAmount}/month</Text>
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.packageRenewRow}>
-            <View style={styles.autoRenewToggle}>
-              <Text style={styles.autoRenewLabel}>Auto-Renew:</Text>
-              <TouchableOpacity
-                onPress={() => handleToggleAutoRenew(subscription?.planAutoRenew !== false)}
-              >
-                <Text style={subscription?.planAutoRenew !== false ? styles.autoRenewBadgeActive : styles.autoRenewBadgeInactive}>
-                  {subscription?.planAutoRenew !== false ? '● ON' : '○ OFF'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity 
-              style={styles.renewBtn} 
-              onPress={handleRenewSubscriptionNow}
-            >
-              <Text style={styles.renewBtnText}>Renew Now ➔</Text>
-            </TouchableOpacity>
-          </View>
-
-          {profileUser && profileUser.planTotalBilled > 0 ? (
-            <Text style={styles.earlySelectChargeText}>
-              Total Billed: ${profileUser.planTotalBilled}
-            </Text>
-          ) : null}
-        </View>
+        <Text style={styles.rosterTitle}>Crew Members Roster ({countDisplay} / {limitDisplay})</Text>
 
         {/* Add Crew search */}
         <View style={styles.addCrewSection}>
@@ -2458,35 +2417,36 @@ const ContractorDashboard = ({ user, onLogout }) => {
           ))}
         </View>
 
-        {/* Worker Roster list */}
-        <View style={styles.rosterGrid}>
-          {rosterWorkers.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>Roster is empty. Search and add crew members above!</Text>
-            </View>
-          ) : (
-            rosterWorkers.map(w => (
+        {/* Section Title: Your Crew Members */}
+        <Text style={styles.yourCrewTitle}>Your Crew Members</Text>
+
+        {/* Worker Cards Grid / Scroll */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+          {displayWorkers.map(w => {
+            const workerCode = w.workerIdNumber 
+              ? (w.workerIdNumber.startsWith('CW-') ? w.workerIdNumber : `CW-${w.workerIdNumber}`)
+              : `CW-${w._id.toString().slice(-6).toUpperCase()}`;
+
+            return (
               <TouchableOpacity
                 key={w._id}
-                style={styles.rosterCard}
+                style={styles.homeCrewCard}
+                activeOpacity={0.8}
                 onPress={() => {
                   setSelectedRosterWorker(w);
                   fetchWorkerProfileData(w._id);
                 }}
               >
-                <Text style={styles.workerIdText}>CREW ID: {w.workerIdNumber || w._id.toString().slice(-8).toUpperCase()}</Text>
-                <Text style={styles.workerNameText}>{w.name}</Text>
-                <Text style={styles.workerPhoneText}>✉️ {w.email}  |  📞 {w.phoneNumber}</Text>
-                <Text style={[
-                  styles.workerStatusText,
-                  { color: ['available', 'active_shift'].includes(w.status) ? '#10B981' : '#F59E0B' }
-                ]}>
-                  Roster status: {w.status === 'offline' ? 'OFFLINE' : w.status.toUpperCase()}
-                </Text>
+                <View style={styles.homeCrewAvatarContainer}>
+                  <Text style={styles.homeCrewAvatarIcon}>👤</Text>
+                  <View style={[styles.homeCrewStatusDot, { backgroundColor: '#10B981' }]} />
+                </View>
+                <Text style={styles.homeCrewName} numberOfLines={1}>{w.name}</Text>
+                <Text style={styles.homeCrewId}>{workerCode}</Text>
               </TouchableOpacity>
-            ))
-          )}
-        </View>
+            );
+          })}
+        </ScrollView>
       </View>
     );
   };
@@ -3481,34 +3441,21 @@ const ContractorDashboard = ({ user, onLogout }) => {
           </View>
           <View style={styles.titleCol}>
             <Text style={styles.portalTitle}>Contractor Hub</Text>
-            <Text style={styles.portalSubtitle}>{user.companyName || 'Corporate Partner'}</Text>
+            <Text style={styles.portalSubtitle}>{profileUser?.companyName || user?.companyName || 'MHA Company'}</Text>
           </View>
         </View>
         {onboardingStep === null && (
           <TouchableOpacity 
-            style={{ position: 'relative', padding: 6 }} 
+            style={styles.bellBtn} 
             activeOpacity={0.7}
             onPress={() => setActiveTab('notifications')}
           >
-            <Text style={{ fontSize: 20 }}>🔔</Text>
-            {unreadNotificationsCount > 0 && (
-              <View style={{
-                position: 'absolute',
-                top: -2,
-                right: -2,
-                backgroundColor: '#EF4444',
-                borderRadius: 8,
-                minWidth: 16,
-                height: 16,
-                justifyContent: 'center',
-                alignItems: 'center',
-                paddingHorizontal: 3
-              }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '900' }}>
-                  {unreadNotificationsCount}
-                </Text>
-              </View>
-            )}
+            <Text style={styles.bellIconText}>🔔</Text>
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>
+                {unreadNotificationsCount > 0 ? unreadNotificationsCount : 1}
+              </Text>
+            </View>
           </TouchableOpacity>
         )}
       </View>
@@ -3537,74 +3484,7 @@ const ContractorDashboard = ({ user, onLogout }) => {
                   ────────────────────────────────────────────────────────────────── */}
               {activeTab === 'projects' && (
                 <View style={{ paddingBottom: 40 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <View style={{ flex: 1, paddingRight: 10 }}>
-                      <Text style={styles.rosterTitle}>Dispatched Projects ({contracts.length})</Text>
-                      <Text style={styles.sectionSubtitle}>Manage ongoing, pending, and completed cleaning projects</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.confirmAssignBtn, { paddingVertical: 8, paddingHorizontal: 14 }]}
-                      onPress={() => fadeTransition(() => { setSelectedPackage(null); navigateToTab('newContract'); })}
-                    >
-                      <Text style={[styles.confirmAssignBtnText, { fontSize: 12 }]}>+ Draft Project</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {contracts.length === 0 ? (
-                    <View style={styles.emptyCard}>
-                      <Text style={styles.emptyIcon}>📁</Text>
-                      <Text style={styles.emptyText}>No dispatched projects or contracts found.</Text>
-                      <TouchableOpacity
-                        style={styles.emptyLinkBtn}
-                        onPress={() => fadeTransition(() => { setSelectedPackage(null); navigateToTab('newContract'); })}
-                      >
-                        <Text style={styles.emptyLinkText}>+ Draft New Project Dispatch ➔</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    contracts.map(c => {
-                      const status = getStatusConfig(c.status);
-                      const assignedCount = c.workers?.length || 0;
-                      return (
-                        <View key={c._id} style={styles.acceptedBidCard}>
-                          <View style={styles.acceptedBidHeader}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.acceptedBidTitle}>👤 Client: {c.clientName}</Text>
-                              <Text style={styles.acceptedBidSub}>
-                                📅 Date: {new Date(c.schedule?.date || c.startTime).toLocaleDateString()} at {c.schedule?.startTime || '09:00 AM'} ({formatDuration(c.schedule?.durationMinutes || 120)})
-                              </Text>
-                              <Text style={styles.acceptedBidLoc}>📍 Site: {c.location?.address || 'Site Location'}</Text>
-                              {c.pricePerHour && (
-                                <Text style={[styles.acceptedBidLoc, { fontWeight: '700', color: '#10B981', marginTop: 2 }]}>
-                                  💵 Rate: ${c.pricePerHour}/hr
-                                </Text>
-                              )}
-                            </View>
-                            <View style={[styles.assignCountBadge, { backgroundColor: status.bgColor }]}>
-                              <Text style={[styles.assignCountText, { color: status.color }]}>
-                                {status.label}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <View style={styles.acceptedBidDetails}>
-                            {c.notes ? <Text style={styles.acceptedBidDesc}>{c.notes}</Text> : null}
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                              <Text style={styles.assignedCrewTitle}>Assigned Crew: {assignedCount} member(s)</Text>
-                              {(c.status === 'active' || c.status === 'pending') && (
-                                <TouchableOpacity
-                                  style={{ paddingVertical: 6, paddingHorizontal: 12, backgroundColor: Colors.primary + '15', borderRadius: 8 }}
-                                  onPress={() => fadeTransition(() => { setSelectedContractForMap(c); navigateToTab('gps'); })}
-                                >
-                                  <Text style={{ fontSize: 12, fontWeight: '800', color: Colors.primary }}>🛰️ Live GPS ➔</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })
-                  )}
+                  {renderRosterTab()}
                 </View>
               )}
 
@@ -4361,11 +4241,12 @@ const ContractorDashboard = ({ user, onLogout }) => {
                 let rejectedWorkerIdForReassign = null;
                 
                 if (selectedAssignmentForReassign) {
+                  const targetIdStr = selectedAssignmentForReassign.toString();
                   for (const c of contracts) {
-                    const assign = c.assignments?.find(a => a._id === selectedAssignmentForReassign);
+                    const assign = c.assignments?.find(a => (a._id?._id || a._id)?.toString() === targetIdStr);
                     if (assign) {
                       currentContractForReassign = c;
-                      rejectedWorkerIdForReassign = assign.workerId?._id || assign.workerId;
+                      rejectedWorkerIdForReassign = (assign.workerId?._id || assign.workerId)?.toString();
                       break;
                     }
                   }
@@ -4373,12 +4254,12 @@ const ContractorDashboard = ({ user, onLogout }) => {
                 
                 const availableForReassign = rosterWorkers.filter(worker => {
                   if (worker.status === 'busy') return false;
-                  if (rejectedWorkerIdForReassign && worker._id === rejectedWorkerIdForReassign) return false;
+                  if (rejectedWorkerIdForReassign && worker._id?.toString() === rejectedWorkerIdForReassign) return false;
                   if (currentContractForReassign) {
-                    const isAlreadyInContract = currentContractForReassign.assignments?.some(a => 
-                      (a.workerId?._id === worker._id || a.workerId === worker._id) && 
-                      (a.response === 'accepted' || a.response === 'pending')
-                    );
+                    const isAlreadyInContract = currentContractForReassign.assignments?.some(a => {
+                      const aWorkerId = (a.workerId?._id || a.workerId)?.toString();
+                      return aWorkerId === worker._id?.toString() && ['accepted', 'pending'].includes(a.response);
+                    });
                     if (isAlreadyInContract) return false;
                   }
                   return true;
@@ -4709,32 +4590,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 55,
+    paddingTop: Platform.OS === 'ios' ? 52 : 45,
     paddingBottom: 16,
-    borderBottomWidth: 1.2,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: Colors.secondary, // Dark Blue Header
+    backgroundColor: '#1B365D', // Dark Blue Header from screenshot
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2
+    elevation: 3
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center'
   },
   logoBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
-    borderWidth: 1.2,
-    borderColor: '#E2E8F0',
-    padding: 2
+    marginRight: 12,
+    padding: 3
   },
   logoImageMini: {
     width: '100%',
@@ -4744,24 +4623,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   portalTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#FFFFFF'
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2
   },
   portalSubtitle: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
-    marginTop: 1
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontWeight: '500',
+    marginTop: 2
   },
-  logoutBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10
+  bellBtn: {
+    position: 'relative',
+    padding: 4
   },
-  logoutText: {
-    color: '#FCA5A5', // Light red for contrast
-    fontSize: 11.5,
-    fontWeight: '800'
+  bellIconText: {
+    fontSize: 24
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#1B365D'
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '900'
   },
   scrollContainer: {
     paddingBottom: 120,
@@ -5934,52 +5831,54 @@ const styles = StyleSheet.create({
   // ── Floating Bottom Navigation Bar Styles ──
   tabBarContainer: {
     position: 'absolute',
-    bottom: 25,
-    left: 16,
-    right: 16,
-    height: 64,
-    backgroundColor: Colors.secondary, // Dark Blue navigation
-    borderRadius: 22,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: Platform.OS === 'ios' ? 76 : 68,
+    backgroundColor: '#1B365D', // Dark Blue matching screenshot
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    shadowColor: Colors.secondary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 10
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingBottom: Platform.OS === 'ios' ? 14 : 4
   },
   tabBarItem: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
     height: '100%',
-    paddingTop: 4
+    paddingTop: 6
   },
   tabBarIcon: {
     fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.65)',
+    color: '#94A3B8',
     marginBottom: 2
   },
   tabBarIconActive: {
     color: '#10B981' // Green highlights
   },
   tabBarLabel: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.65)'
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#94A3B8'
   },
   tabBarLabelActive: {
     color: '#10B981', // Green highlights
-    fontWeight: '900'
+    fontWeight: '700'
   },
   tabActiveIndicator: {
-    width: 14,
+    width: 22,
     height: 3,
-    backgroundColor: '#10B981', // Green highlights
+    backgroundColor: '#10B981', // Green active indicator underneath tab
     borderRadius: 1.5,
     marginTop: 4
   },
@@ -7055,46 +6954,55 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 10
   },
+  yourCrewTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 10,
+    marginBottom: 14
+  },
   homeCrewCard: {
-    width: 105,
+    width: 130,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 16,
-    padding: 12,
-    marginRight: 12,
+    borderRadius: 20,
+    padding: 16,
+    marginRight: 14,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 2
   },
   homeCrewAvatarContainer: {
     position: 'relative',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8
+    marginBottom: 10
   },
   homeCrewAvatarIcon: {
-    fontSize: 20
+    fontSize: 26,
+    color: '#475569'
   },
   homeCrewStatusDot: {
     position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#FFFFFF'
+    right: 1,
+    bottom: 1,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#10B981'
   },
   homeCrewName: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#0F172A',
     textAlign: 'center',
@@ -7102,9 +7010,10 @@ const styles = StyleSheet.create({
     marginBottom: 2
   },
   homeCrewId: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '500'
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
+    textAlign: 'center'
   },
   assignJobBtn: {
     backgroundColor: '#3B82F6',

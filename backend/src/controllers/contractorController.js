@@ -261,7 +261,7 @@ exports.getContracts = async (req, res) => {
           type: 'contract_expired',
           title: 'Worker Response Timeout',
           message: `Worker ${exp.workerId?.name || 'A crew member'} did not respond to the contract within the deadline. Please assign this job to another crew member.`,
-          data: { contractId: exp.contractId, workerId: exp.workerId?._id },
+          data: { contractId: exp.contractId, assignmentId: exp._id, workerId: exp.workerId?._id },
           socketEvent: 'contractor_notification'
         });
       }
@@ -1180,9 +1180,10 @@ exports.reassignWorker = async (req, res) => {
       socketEvent: 'worker_notification'
     });
 
-    // Mark old assignment as replaced to prevent confusion (optional, or just leave it)
-    oldAssignment.response = 'expired'; // Or we can add a 'replaced' status later if needed
-    await oldAssignment.save();
+    if (oldAssignment.response === 'pending') {
+      oldAssignment.response = 'expired';
+      await oldAssignment.save();
+    }
 
     res.status(200).json({ success: true, message: 'Worker successfully reassigned', newAssignment });
   } catch (error) {
