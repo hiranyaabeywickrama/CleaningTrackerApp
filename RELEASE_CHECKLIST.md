@@ -1,0 +1,22 @@
+# Release Checklist - CrewLynk (CleaningTrackerApp)
+
+- [x] Critical issues fixed
+- [x] Client workflow tested
+- [x] Contractor workflow tested
+- [x] Crew workflow tested
+- [x] Login/logout tested
+- [x] Registration tested
+- [x] Forms validated
+- [x] Navigation tested
+- [x] Android back button tested
+- [x] Location tested
+- [x] GPS tested
+- [x] Geofencing tested
+- [x] Project status tested
+- [x] Handover tested
+- [x] Ratings tested
+- [x] API tested
+- [x] Production backend tested
+- [x] No localhost dependency
+- [x] Android build tested
+- [x] Final APK generated

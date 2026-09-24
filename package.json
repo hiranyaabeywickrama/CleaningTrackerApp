@@ -1,0 +1,12 @@
+{
+  "name": "cleaning-tracker-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd backend && npm install",
+    "start": "cd backend && npm start"
+  },
+  "dependencies": {
+    "express": "^4.22.2"
+  }
+}
